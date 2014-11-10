@@ -19,3 +19,8 @@ if "bulbs.contributions" in settings.INSTALLED_APPS:
     urlpatterns += (
         url(r"^contributions/", include('bulbs.contributions.urls')),
     )
+
+if "bulbs.accounting" in settings.INSTALLED_APPS:
+    urlpatterns += (
+        url(r"^accounting/", include('bulbs.accounting.urls')),
+    )

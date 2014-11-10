@@ -9,7 +9,6 @@ from django.utils import timezone
 from bulbs.contributions.models import Contribution, ContributorRole
 
 from tests.utils import BaseAPITestCase, make_content
-from tests.testcontent.models import TestContentObj
 
 from django.contrib.auth.models import User
 

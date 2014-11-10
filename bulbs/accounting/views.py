@@ -5,25 +5,30 @@ import datetime
 from django.utils import timezone, dateparse
 
 from rest_framework import viewsets, routers
+from rest_framework.settings import api_settings
+from rest_framework_csv.renderers import CSVRenderer
 
-from bulbs.api.permissions import IsAdminUser
 from bulbs.api.mixins import UncachedResponse
 from bulbs.content.models import Content
+from bulbs.contributions.models import Contribution
 
 from .models import AccountingRule, AccountingOverride
-from .serializers import AccountingRuleSerializer
+from .serializers import AccountingRuleSerializer, AccountingReportSerializer
 
 
 class AccountingRuleViewSet(UncachedResponse, viewsets.ModelViewSet):
     model = AccountingRule
     serializer_class = AccountingRuleSerializer
 
-    permission_classes = [IsAdminUser]
+    # permission_classes = [IsAdminUser]
 
 
-class AccountingReportViewSet(UncachedResponse, viewsets.GenericViewSet):
+class AccountingReportViewSet(UncachedResponse, viewsets.ModelViewSet):
 
-    def list(self, request, *args, **kwargs):
+    renderer_classes = (CSVRenderer, ) + tuple(api_settings.DEFAULT_RENDERER_CLASSES)
+    serializer_class = AccountingReportSerializer
+
+    def get_queryset(self):
         now = timezone.now()
 
         start_date = datetime.datetime(
@@ -40,22 +45,16 @@ class AccountingReportViewSet(UncachedResponse, viewsets.GenericViewSet):
 
         content = Content.objects.filter(published__range=(start_date, end_date))
         content_ids = content.values_list("pk", flat=True)
+        contributions = Contribution.objects.filter(content__in=content_ids)
 
-        rules = AccountingRule.objects.all()
-        contributions = Contribution.objects.filter(content__in=content_ids).select_related("content")
-        contribution_ids = contributions.values_list("pk", flat=True)
-        overrides = AccountingOverride.objects.filter(contribution__in=contribution_ids)
-
-        data = []
-        for contribution in contributions:
-            for rule in rules:
-                if rule.matches(content)
-            data.append({
-                "author": contribution.contributor,
-                "content": contribution.content,
-                "amount": 
-            })
+        ordering = self.request.GET.get("ordering", "content")
+        order_options = {
+            "content": "content__published",
+            "user": "contributor__id"
+        }
+        return contributions.order_by(order_options[ordering])
 
 
 api_v1_router = routers.DefaultRouter()
 api_v1_router.register(r"rule", AccountingRuleViewSet, base_name="rule")
+api_v1_router.register(r"accountingreport", AccountingReportViewSet, base_name="accountingreport")
