@@ -1,41 +1,62 @@
-from django.core.urlresolvers import reverse
-from django.test import Client
 from elastimorphic.tests.base import BaseIndexableTestCase
-from django.contrib.auth import get_user_model
+
+from bulbs.content.models import FeatureType
+from bulbs.contributions.models import ContributorRole, Contribution
+from bulbs.accounting.models import AccountingRule
+
+from django.contrib.auth.models import User
+from django.utils import timezone
 
 
-User = get_user_model()
+from tests.utils import make_content
+from model_mommy import mommy
 
 
 class TestAccountingRules(BaseIndexableTestCase):
 
-
     def setUp(self):
         super(TestAccountingRules, self).setUp()
 
+        self.feature_types = {}
+        for name in ("clicks", "clacks", "clunks"):
+            self.feature_types[name] = mommy.make(FeatureType, name=name)
 
-    def test_logout(self):
+        self.roles = {}
+        for name in ("editor", "writer", "contributor"):
+            self.roles[name] = mommy.make(ContributorRole, name=name)
 
-        # create and get a test user
-        user = User.objects.create_user('onions', 'wh@tever.com', 'password')
-        user.is_staff = True
-        user.save()
+        self.authors = mommy.make(User, _quantity=20)
 
-        # log user in
-        client = Client()
-        logged_in = client.login(username='onions', password='password')
-        self.assertTrue(logged_in)
-
-        # check that user is logged in
-        self.assertTrue(client.session['_auth_user_id'], user.pk)
-
-        print client.session['_auth_user_id']
-
-        # log user out via endpoint
-        request = client.get(
-            reverse('logout')
+    def test_cached_rules(self):
+        rule = AccountingRule.objects.create(
+            amount=100.00,
+            priority=0
         )
+        rule.roles.add(self.roles["editor"])
 
-        # check that user is logged out
-        self.assertEqual(request.status_code, 200)
-        self.assertNotIn('_auth_user_id', self.client.session)
+        rules = AccountingRule.objects.cached()
+        self.assertEqual(rules[0].roles.count(), 1)
+
+    def test_simple_matching(self):
+        rule = AccountingRule.objects.create(
+            amount=100.00,
+            priority=0
+        )
+        rule.roles.add(self.roles["editor"])
+
+        content = make_content(published=timezone.now())
+        contribution = Contribution.objects.create(
+            contributor=self.authors[0],
+            content=content,
+            role=self.roles["editor"]
+        )
+        self.assertTrue(rule.match(contribution))
+        self.assertEqual(AccountingRule.objects.match(contribution), rule)
+
+        orphaned_contribution = Contribution.objects.create(
+            contributor=self.authors[0],
+            content=content,
+            role=self.roles["writer"]
+        )
+        self.assertFalse(rule.match(orphaned_contribution))
+        self.assertIsNone(AccountingRule.objects.match(orphaned_contribution))

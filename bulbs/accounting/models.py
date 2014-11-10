@@ -1,34 +1,29 @@
 from django.core.cache import cache
 from django.db import models
 
-from bulbs.contributions.models import ContributorRole, Contribution
-from bulbs.content.models import FeatureType
 from django.contrib.contenttypes.models import ContentType
+
+
+import pickle
 
 
 class AccountingRuleManager(models.Manager):
 
     def cached(self):
-        rules = cache.get("accounting-rules")
-        if rules is None:
-            rules = self.objects.values()
-            cache.set("accounting-rules", rules, 60 * 10)
-        return [AccountingRule(**rule) for rule in rules]
+        cached = cache.get("accounting-rules")
+        if cached is not None:
+            return pickle.loads(cached)
+        else:
+            qs = self.all().prefetch_related("roles", "feature_types", "content_types")
+            cache.set("accounting-rules", pickle.dumps(qs), 60 * 10)
+            return qs
 
     def match(self, contribution):
         rules = self.cached()
         for rule in rules:
-            if rule.roles:
-                if contribution.role_id not in rule.roles:
-                    return False
-            if rule.feature_types:
-                if contribution.content.feature_type_id not in rule.feature_types:
-                    return False
-            if rule.content_types:
-                content_type = ContentType.objects.get_for_model(contribution.content)
-                if content_type.id not in rule.content_types:
-                    return False
-        return True
+            if rule.match(contribution):
+                return rule
+        return None
 
 
 class AccountingRule(models.Model):
@@ -36,11 +31,36 @@ class AccountingRule(models.Model):
     amount = models.FloatField()
     priority = models.IntegerField()
 
-    roles = models.ManyToMany(ContributorRole, null=True, blank=True)
-    feature_types = models.ManyToMany(FeatureType, null=True, blank=True)
-    content_types = models.ManyToMany(ContentType, null=True, blank=True)
+    roles = models.ManyToManyField("contributions.ContributorRole", null=True, blank=True)
+    feature_types = models.ManyToManyField("content.FeatureType", null=True, blank=True)
+    content_types = models.ManyToManyField("contenttypes.ContentType", null=True, blank=True)
+
+    objects = AccountingRuleManager()
+
+    def match(self, contribution):
+        matched = False
+        if self.roles.exists():
+            if contribution.role_id not in self.roles.values_list("pk", flat=True):
+                return False
+            else:
+                matched = True
+
+        if self.feature_types.exists():
+            if contribution.content.feature_type_id not in self.feature_types.values_list("pk", flat=True):
+                return False
+            else:
+                matched = True
+
+        if self.content_types.exists():
+            content_type = ContentType.objects.get_for_model(contribution.content)
+            if content_type.id not in self.content_types.values_list("pk", flat=True):
+                return False
+            else:
+                matched = True
+
+        return matched
 
 
 class AccountingOverride(models.Model):
     amount = models.FloatField()
-    contribution = models.ForeignKey(Contribution)
+    contribution = models.ForeignKey("contributions.Contribution")

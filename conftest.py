@@ -28,6 +28,7 @@ def pytest_configure():
             "rest_framework",
             "polymorphic",
 
+            "bulbs.accounting",
             "bulbs.api",
             "bulbs.content",
             "bulbs.contributions",
