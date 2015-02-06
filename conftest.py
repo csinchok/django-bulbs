@@ -27,6 +27,8 @@ def pytest_configure():
             }
         },
 
+        ALLOWED_HOSTS=["localhost", "*.local"],
+
         TEMPLATE_DIRS=(os.path.join(MODULE_ROOT, 'tests', 'templates'),),
 
         INSTALLED_APPS=(
