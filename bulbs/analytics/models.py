@@ -1,7 +1,8 @@
 import json
 
 from django.conf import settings
-from django.core.urlresolvers import resolve
+from django.core.exceptions import ObjectDoesNotExist
+from django.core.urlresolvers import resolve, Resolver404
 from django.db import models
 
 from django.http.request import validate_host, split_domain_port
@@ -16,10 +17,13 @@ def get_content_for_url(url, allow_redirects=True):
 
     parsed = urlparse(url)
     domain, port = split_domain_port(parsed.netloc)
+    settings.ALLOWED_HOSTS = ["localhost", "*.local"]
+
     if validate_host(domain, settings.ALLOWED_HOSTS) is False:
 
-        # Looks like the URL we were given isn't for this domain—let's try to resolve redirects
+        # Looks like the URL we were given isn't for this domain--let's try to resolve redirects
         response = requests.head(url, allow_redirects=True)
+        print(response.history)
         if response.status_code == 200:
             url = response.url
             parsed = urlparse(url)
@@ -28,7 +32,10 @@ def get_content_for_url(url, allow_redirects=True):
                 # Looks like even after following the redirects, we're still fucked
                 return
 
-    match = resolve(parsed.path)
+    try:
+        match = resolve(parsed.path)
+    except Resolver404:
+        raise ObjectDoesNotExist
     if match:
         pk = match.kwargs.get('pk')
         if pk is None and len(match.args):
