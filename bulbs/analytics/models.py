@@ -68,7 +68,7 @@ class TwitterAccount(SocialAccount):
 
 class FacebookPage(SocialAccount):
     name = models.CharField(max_length=255)
-    page_id = models.IntegerField()
+    page_id = models.BigIntegerField()
     access_token = models.CharField(max_length=510)
     allowed_hosts = models.CharField(null=True, blank=True, max_length=255)
     last_updated = models.IntegerField(null=True, blank=True)
