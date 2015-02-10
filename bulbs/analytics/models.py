@@ -34,12 +34,12 @@ def get_content_for_url(url, allowed_hosts=["*"]):
     except Resolver404:
         raise ObjectDoesNotExist
     if match:
-        pk = match.kwargs.get('pk')
-        if pk is None and len(match.args):
-            pk = match.args[0]
+        id = match.kwargs.get('pk') or match.kwargs.get('id')
+        if id is None and len(match.args):
+            id = match.args[0]
 
-        if pk:
-            return Content.objects.get(pk=pk)
+        if id:
+            return Content.objects.get(id=id)
 
     # If we get here, something fucked up
     raise ObjectDoesNotExist
@@ -89,17 +89,19 @@ class FacebookPage(SocialAccount):
         response.raise_for_status()
 
         for data in response.json()["data"]:
-            post, created = FacebookPost.objects.get_or_create(
-                post_id=data["id"],
-                page=self,
-                defaults={"data": json.dumps(data)})
 
-            if created is False:
-                # Looks like we've come this far before
-                break
+            try:
+                post = FacebookPost.objects.get(post_id=data["id"])
+            except FacebookPost.DoesNotExist:
+                post = FacebookPost(post_id=data["id"], page=self, data=json.dumps(data))
 
-            if "link" in data and post.content is None:
-                post.content = get_content_for_url(data["link"], allowed_hosts=self.allowed_hosts.split(","))
+            if "link" in data:
+                try:
+                    post.content = get_content_for_url(data["link"], allowed_hosts=self.allowed_hosts.split(","))
+                except ObjectDoesNotExist:
+                    print("Can't find content for: {}".format(data["link"]))
+                    continue
+
                 post.save()
 
 
