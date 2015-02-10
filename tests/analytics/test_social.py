@@ -2,7 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from elastimorphic.tests.base import BaseIndexableTestCase
 from tests.utils import make_content
 
-from bulbs.analytics.models import get_content_for_url
+from bulbs.analytics.models import get_content_for_url, FacebookPage
 
 from httmock import HTTMock, urlmatch
 
@@ -69,3 +69,6 @@ class URLResolutionTextCase(BaseIndexableTestCase):
         with self.assertRaises(ObjectDoesNotExist):
             with HTTMock(bad_redirect, content_404):
                 get_content_for_url("http://example.com/bad-redirect")
+
+
+

@@ -42,6 +42,7 @@ def pytest_configure():
             "rest_framework",
             "polymorphic",
             # local apps
+            "bulbs.analytics",
             "bulbs.api",
             "bulbs.feeds",
             "bulbs.redirects",
