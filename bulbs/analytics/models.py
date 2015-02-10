@@ -14,8 +14,6 @@ from bulbs.content.models import Content
 
 
 def get_content_for_url(url, allowed_hosts=["*"]):
-
-    print(allowed_hosts)
     parsed = urlparse(url)
     domain, port = split_domain_port(parsed.netloc)
 
@@ -82,8 +80,6 @@ class FacebookPage(SocialAccount):
         return self.name
 
     def poll(self):
-        print(self.allowed_hosts.split(","))
-
         graph_url = "https://graph.facebook.com/{}/posts".format(self.page_id)
         params = {
             "access_token": self.access_token,
@@ -114,7 +110,7 @@ class FacebookPost(models.Model):
     content = models.ForeignKey(Content, null=True, blank=True)
     data = models.TextField(null=True, blank=True)
     insights = models.TextField(null=True, blank=True)
-    last_updated = models.DateTimeField()
+    last_updated = models.DateTimeField(null=True, blank=True)
 
     def update_insights(self):
         graph_url = "https://graph.facebook.com/{}/insights".format(self.post_id)
