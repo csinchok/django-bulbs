@@ -15,6 +15,7 @@ from bulbs.content.models import Content
 
 def get_content_for_url(url, allowed_hosts=["*"]):
 
+    print(allowed_hosts)
     parsed = urlparse(url)
     domain, port = split_domain_port(parsed.netloc)
 
@@ -81,6 +82,8 @@ class FacebookPage(SocialAccount):
         return self.name
 
     def poll(self):
+        print(self.allowed_hosts.split(","))
+
         graph_url = "https://graph.facebook.com/{}/posts".format(self.page_id)
         params = {
             "access_token": self.access_token,
@@ -100,7 +103,7 @@ class FacebookPage(SocialAccount):
                 break
 
             if "link" in data and post.content is None:
-                post.content = get_content_for_url(data["link"], allowed_hosts=self.allowed_hosts)
+                post.content = get_content_for_url(data["link"], allowed_hosts=self.allowed_hosts.split(","))
                 post.save()
 
 

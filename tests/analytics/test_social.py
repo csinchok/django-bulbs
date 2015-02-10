@@ -45,12 +45,21 @@ def fake_content(url, request):
 
 class URLResolutionTextCase(BaseIndexableTestCase):
 
+    def setUp(self):  # noqa
+        super(URLResolutionTextCase, self).setUp()
+        self.theonion = FacebookPage.objects.create(
+            name="The Onion",
+            access_token="blergh",
+            page_id=20950654496,
+            allowed_hosts="localhost,*.local"
+        )
+
     def test_url_resolution(self):
         test_content = make_content()
 
         test_url = "http://localhost{}".format(test_content.get_absolute_url())
 
-        content = get_content_for_url(test_url)
+        content = get_content_for_url(test_url, allowed_hosts=["localhost"])
         self.assertIsNotNone(content)
         self.assertEqual(test_content.id, content.id)
 
@@ -58,17 +67,30 @@ class URLResolutionTextCase(BaseIndexableTestCase):
         test_content = make_content(id=666)
 
         with HTTMock(fake_redirect, fake_content):
-            content = get_content_for_url("http://example.com/fake-redirect")
+            content = get_content_for_url("http://example.com/fake-redirect", allowed_hosts=["localhost"])
             self.assertIsNotNone(content)
             self.assertEqual(test_content.id, content.id)
 
     def test_url_nomatch(self):
         with self.assertRaises(ObjectDoesNotExist):
-            get_content_for_url("http://localhost/detail/1234567/")
+            get_content_for_url("http://localhost/detail/1234567/", allowed_hosts=["localhost"])
 
         with self.assertRaises(ObjectDoesNotExist):
             with HTTMock(bad_redirect, content_404):
-                get_content_for_url("http://example.com/bad-redirect")
+                get_content_for_url("http://example.com/bad-redirect", allowed_hosts=["localhost"])
 
 
+class PollingTestCase(BaseIndexableTestCase):
 
+    def setUp(self):  # noqa
+        super(PollingTestCase, self).setUp()
+        self.theonion = FacebookPage.objects.create(
+            name="The Onion",
+            access_token="blergh",
+            page_id=20950654496,
+            allowed_hosts="localhost,*.local"
+        )
+
+    # def test_polling(self):
+    #     self.theonion.poll()
+    #     self.assertEqual(self.theonion.posts.count(), 25)
