@@ -17,17 +17,26 @@ def get_content_for_url(url, allowed_hosts=["*"]):
     parsed = urlparse(url)
     domain, port = split_domain_port(parsed.netloc)
 
-    if validate_host(domain, allowed_hosts) is False:
+    if validate_host(domain, allowed_hosts):
+        try:
+            match = resolve(parsed.path)
+            id = match.kwargs.get('pk') or match.kwargs.get('id')
+            if id is None and len(match.args):
+                id = match.args[0]
 
-        # Looks like the URL we were given isn't for this domain--let's try to resolve redirects
-        response = requests.head(url, allow_redirects=True)
-        if response.status_code == 200:
-            url = response.url
-            parsed = urlparse(url)
+            if id:
+                return Content.objects.get(id=id)
+        except Resolver404:
+            pass  # Let's try to resolve redirects...
 
-            if validate_host(parsed.netloc, allowed_hosts) is False:
-                # Looks like even after following the redirects, we're still fucked
-                return
+    response = requests.head(url, allow_redirects=True)
+    if response.status_code == 200:
+        url = response.url
+        parsed = urlparse(url)
+
+        if validate_host(parsed.netloc, allowed_hosts) is False:
+            # Looks like even after following the redirects, we're still fucked
+            raise ObjectDoesNotExist
 
     try:
         match = resolve(parsed.path)
