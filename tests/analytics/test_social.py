@@ -2,7 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from elastimorphic.tests.base import BaseIndexableTestCase
 from tests.utils import make_content
 
-from bulbs.analytics.models import get_content_for_url, FacebookPage
+from bulbs.analytics.models import FacebookPage
 
 from httmock import HTTMock, urlmatch
 
@@ -43,6 +43,16 @@ def fake_content(url, request):
     }
 
 
+@urlmatch(path="/r/666")
+def fake_local_redirect(url, request):
+    return {
+        "status_code": 301,
+        "headers": {
+            "Location": "http://localhost/detail/666/"
+        }
+    }
+
+
 class URLResolutionTextCase(BaseIndexableTestCase):
 
     def setUp(self):  # noqa
@@ -51,7 +61,7 @@ class URLResolutionTextCase(BaseIndexableTestCase):
             name="The Onion",
             access_token="blergh",
             page_id=20950654496,
-            allowed_hosts="localhost,*.local"
+            allowed_hosts="localhost,*local"
         )
 
     def test_url_resolution(self):
@@ -59,7 +69,7 @@ class URLResolutionTextCase(BaseIndexableTestCase):
 
         test_url = "http://localhost{}".format(test_content.get_absolute_url())
 
-        content = get_content_for_url(test_url, allowed_hosts=["localhost"])
+        content = self.theonion.get_content_for_url(test_url)
         self.assertIsNotNone(content)
         self.assertEqual(test_content.id, content.id)
 
@@ -67,17 +77,24 @@ class URLResolutionTextCase(BaseIndexableTestCase):
         test_content = make_content(id=666)
 
         with HTTMock(fake_redirect, fake_content):
-            content = get_content_for_url("http://example.com/fake-redirect", allowed_hosts=["localhost"])
+            content = self.theonion.get_content_for_url("http://example.com/fake-redirect")
             self.assertIsNotNone(content)
             self.assertEqual(test_content.id, content.id)
 
     def test_url_nomatch(self):
         with self.assertRaises(ObjectDoesNotExist):
-            get_content_for_url("http://localhost/detail/1234567/", allowed_hosts=["localhost"])
+            self.theonion.get_content_for_url("http://localhost/detail/1234567/")
 
         with self.assertRaises(ObjectDoesNotExist):
             with HTTMock(bad_redirect, content_404):
-                get_content_for_url("http://example.com/bad-redirect", allowed_hosts=["localhost"])
+                self.theonion.get_content_for_url("http://example.com/bad-redirect")
+
+    def test_local_redirect(self):
+        test_content = make_content(id=666)
+        with HTTMock(fake_local_redirect, fake_content):
+            content = self.theonion.get_content_for_url("http://localhost/r/666")
+            self.assertIsNotNone(content)
+            self.assertEqual(test_content.id, content.id)
 
 
 class PollingTestCase(BaseIndexableTestCase):
