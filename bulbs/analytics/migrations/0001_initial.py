@@ -13,19 +13,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='FacebookPost',
-            fields=[
-                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('post_id', models.CharField(max_length=255)),
-                ('data', models.TextField(null=True, blank=True)),
-                ('insights', models.TextField(null=True, blank=True)),
-                ('last_updated', models.DateTimeField(null=True, blank=True)),
-            ],
-            options={
-            },
-            bases=(models.Model,),
-        ),
-        migrations.CreateModel(
             name='SocialAccount',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
@@ -45,7 +32,6 @@ class Migration(migrations.Migration):
                 ('name', models.CharField(max_length=255)),
                 ('page_id', models.BigIntegerField()),
                 ('access_token', models.CharField(max_length=510)),
-                ('last_updated', models.IntegerField(null=True, blank=True)),
             ],
             options={
                 'abstract': False,
@@ -59,13 +45,25 @@ class Migration(migrations.Migration):
                 ('url', models.URLField(null=True, blank=True)),
                 ('created_time', models.DateTimeField()),
                 ('last_updated', models.DateTimeField(null=True, blank=True)),
-                ('content', models.ForeignKey(blank=True, to='content.Content', null=True)),
-                ('polymorphic_ctype', models.ForeignKey(related_name='polymorphic_analytics.socialpromotion_set', editable=False, to='contenttypes.ContentType', null=True)),
             ],
             options={
                 'ordering': ('-created_time',),
             },
             bases=(models.Model,),
+        ),
+        migrations.CreateModel(
+            name='FacebookPost',
+            fields=[
+                ('socialpromotion_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='analytics.SocialPromotion')),
+                ('post_id', models.CharField(max_length=255)),
+                ('data', models.TextField(null=True, blank=True)),
+                ('insights', models.TextField(null=True, blank=True)),
+                ('page', models.ForeignKey(related_name='posts', to='analytics.FacebookPage')),
+            ],
+            options={
+                'abstract': False,
+            },
+            bases=('analytics.socialpromotion',),
         ),
         migrations.CreateModel(
             name='TwitterAccount',
@@ -79,15 +77,21 @@ class Migration(migrations.Migration):
             bases=('analytics.socialaccount',),
         ),
         migrations.AddField(
-            model_name='socialaccount',
-            name='polymorphic_ctype',
-            field=models.ForeignKey(related_name='polymorphic_analytics.socialaccount_set', editable=False, to='contenttypes.ContentType', null=True),
+            model_name='socialpromotion',
+            name='content',
+            field=models.ForeignKey(blank=True, to='content.Content', null=True),
             preserve_default=True,
         ),
         migrations.AddField(
-            model_name='facebookpost',
-            name='page',
-            field=models.ForeignKey(related_name='posts', to='analytics.FacebookPage'),
+            model_name='socialpromotion',
+            name='polymorphic_ctype',
+            field=models.ForeignKey(related_name='polymorphic_analytics.socialpromotion_set', editable=False, to='contenttypes.ContentType', null=True),
+            preserve_default=True,
+        ),
+        migrations.AddField(
+            model_name='socialaccount',
+            name='polymorphic_ctype',
+            field=models.ForeignKey(related_name='polymorphic_analytics.socialaccount_set', editable=False, to='contenttypes.ContentType', null=True),
             preserve_default=True,
         ),
     ]

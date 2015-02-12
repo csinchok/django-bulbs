@@ -99,7 +99,6 @@ class FacebookPage(SocialAccount):
     name = models.CharField(max_length=255)
     page_id = models.BigIntegerField()
     access_token = models.CharField(max_length=510)
-    last_updated = models.IntegerField(null=True, blank=True)
 
     FACEBOOK_FIELDS = [
         "type", "created_time", "link", "name", "picture",
@@ -139,13 +138,12 @@ class FacebookPage(SocialAccount):
                 post.save()
 
 
-class FacebookPost(models.Model):
+class FacebookPost(SocialPromotion):
 
     page = models.ForeignKey(FacebookPage, related_name="posts")
     post_id = models.CharField(max_length=255)
     data = models.TextField(null=True, blank=True)
     insights = models.TextField(null=True, blank=True)
-    last_updated = models.DateTimeField(null=True, blank=True)
 
     def update_analytics(self):
         graph_url = "https://graph.facebook.com/{}/insights".format(self.post_id)
