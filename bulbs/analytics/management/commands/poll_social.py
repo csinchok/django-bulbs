@@ -17,11 +17,11 @@ class Command(BaseCommand):
         polling_rules = [
             {
                 "created_time__gte": two_days_ago,
-                "last_updated__lte": datetime.timedelta(minutes=15)
+                "last_updated__lte": now - datetime.timedelta(minutes=15)
             },
             {
                 "created_time__range": (one_week_ago, two_days_ago),
-                "last_updated__lte": datetime.timedelta(hours=1)
+                "last_updated__lte": now - datetime.timedelta(hours=1)
             },
         ]
 
