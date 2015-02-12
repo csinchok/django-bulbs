@@ -135,14 +135,14 @@ class FacebookPage(SocialAccount):
                 if "l.facebook.com/l.php" in data["link"]:
                     parsed = urlparse(data["link"])
                     querydata = parse_qs(parsed.query)
-                    if "u" not in querydata:
+                    if len(querydata.get("u", [])) == 0:
                         continue
-                    post.url = querydata["u"]
+                    post.url = querydata["u"][0]
                 else:
                     post.url = data["link"]
 
                 try:
-                    post.content = self.get_content_for_url(data["link"])
+                    post.content = self.get_content_for_url(post.url)
                 except ObjectDoesNotExist:
                     continue
 
