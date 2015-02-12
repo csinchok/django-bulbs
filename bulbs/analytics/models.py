@@ -5,7 +5,9 @@ from django.core.urlresolvers import resolve, Resolver404
 from django.db import models
 from django.http.request import validate_host, split_domain_port
 from django.utils import timezone
+from django.utils import dateparse
 
+from polymorphic import PolymorphicModel
 import requests
 from urlparse import urlparse
 
@@ -66,13 +68,15 @@ class SocialAccount(models.Model):
         raise ObjectDoesNotExist
 
 
-class SocialPromotion(models.Model):
+class SocialPromotion(PolymorphicModel):
 
     url = models.URLField(null=True, blank=True)
+    created_time = models.DateTimeField()
     last_updated = models.DateTimeField(null=True, blank=True)
+    content = models.ForeignKey(Content, null=True, blank=True)
 
     class Meta:
-        abstract = True
+        ordering = ("-created_time",)
 
     def get_analytics_options(self):
         """This is intended to return a list of tuples? I think? Who knows,
@@ -119,10 +123,15 @@ class FacebookPage(SocialAccount):
             try:
                 post = FacebookPost.objects.get(post_id=data["id"])
             except FacebookPost.DoesNotExist:
-                post = FacebookPost(post_id=data["id"], page=self, data=json.dumps(data))
+                post = FacebookPost(
+                    post_id=data["id"],
+                    page=self,
+                    created_time=dateparse.parse_datetime(data["created_time"]),
+                    data=json.dumps(data))
 
             if "link" in data:
                 try:
+                    post.url = data["link"]
                     post.content = self.get_content_for_url(data["link"])
                 except ObjectDoesNotExist:
                     print("Can't find content for: {}".format(data["link"]))
@@ -135,7 +144,6 @@ class FacebookPost(models.Model):
 
     page = models.ForeignKey(FacebookPage, related_name="posts")
     post_id = models.CharField(max_length=255)
-    content = models.ForeignKey(Content, null=True, blank=True)
     data = models.TextField(null=True, blank=True)
     insights = models.TextField(null=True, blank=True)
     last_updated = models.DateTimeField(null=True, blank=True)

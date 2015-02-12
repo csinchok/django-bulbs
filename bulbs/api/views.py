@@ -30,6 +30,8 @@ from bulbs.content.serializers import (
 )
 from bulbs.contributions.serializers import ContributionSerializer
 from bulbs.contributions.models import Contribution
+from bulbs.analytics.models import SocialPromotion
+from bulbs.analytics.serializers import SocialPromotionSerializer
 from .mixins import UncachedResponse
 from .permissions import CanEditContent, CanPublishContent
 
@@ -223,6 +225,14 @@ class ContentViewSet(UncachedResponse, viewsets.ModelViewSet):
         else:
             serializer = ContributionSerializer(queryset, many=True)
             return Response(serializer.data)
+
+    @detail_route(methods=["get"])
+    def social_promotions(self, request, **kwargs):
+        if SocialPromotion not in get_models():
+            return Response([])
+        queryset = SocialPromotion.objects.filter(content=self.get_object())
+        serializer = SocialPromotionSerializer(queryset, many=True)
+        return Response(serializer.data)
 
     @detail_route(methods=["post"], permission_classes=[CanEditContent])
     def create_token(self, request, **kwargs):
