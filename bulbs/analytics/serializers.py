@@ -6,7 +6,7 @@ from .models import SocialPromotion
 
 class SocialPromotionSerializer(serializers.ModelSerializer):
 
-    rendered = serializers.SerialierMethodField()
+    rendered = serializers.SerializerMethodField(method_name="get_rendered")
 
     class Meta:
         model = SocialPromotion
