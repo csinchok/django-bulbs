@@ -14,14 +14,11 @@ from urlparse import urlparse
 from bulbs.content.models import Content
 
 
-class SocialAccount(models.Model):
+class SocialAccount(PolymorphicModel):
 
     last_checked = models.DateTimeField(null=True, blank=True)
     url = models.URLField(null=True, blank=True)
     allowed_hosts = models.CharField(null=True, blank=True, max_length=255)
-
-    class Meta:
-        abstract = True
 
     def poll(self):
         """Polls Facebook, Twitter, etc for posts made since the last check"""
@@ -94,6 +91,9 @@ class TwitterAccount(SocialAccount):
     def __unicode__(self):
         return self.handle
 
+    def update_analytics(self):
+        pass  # I dont' know if we can even get twitter analytics
+
 
 class FacebookPage(SocialAccount):
     name = models.CharField(max_length=255)
@@ -134,7 +134,6 @@ class FacebookPage(SocialAccount):
                     post.url = data["link"]
                     post.content = self.get_content_for_url(data["link"])
                 except ObjectDoesNotExist:
-                    print("Can't find content for: {}".format(data["link"]))
                     continue
 
                 post.save()
