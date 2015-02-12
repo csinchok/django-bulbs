@@ -9,7 +9,7 @@ from django.utils import dateparse
 
 from polymorphic import PolymorphicModel
 import requests
-from urlparse import urlparse
+from urlparse import urlparse, parse_qs
 
 from bulbs.content.models import Content
 
@@ -129,8 +129,19 @@ class FacebookPage(SocialAccount):
                     data=json.dumps(data))
 
             if "link" in data:
-                try:
+                # So, facebook doesn't actually preserve the real link. They use their bullshit JS redirect system. It's fucked.
+                # For example: http://l.facebook.com/l.php?u=http%3A%2F%2Fwww.clickhole.com%2Fr%2F1912fsd&h=IAQFVQcMw
+                # I know, right?
+                if "l.facebook.com/l.php" in data["link"]:
+                    parsed = urlparse(data["link"])
+                    querydata = parse_qs(parsed.query)
+                    if "u" not in querydata:
+                        continue
+                    post.url = querydata["u"]
+                else:
                     post.url = data["link"]
+
+                try:
                     post.content = self.get_content_for_url(data["link"])
                 except ObjectDoesNotExist:
                     continue
