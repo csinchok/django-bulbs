@@ -16,6 +16,9 @@ class Command(BaseCommand):
         one_week_ago = now - datetime.timedelta(days=7)
         polling_rules = [
             {
+                "last_updated__isnull": True
+            },
+            {
                 "created_time__gte": two_days_ago,
                 "last_updated__lte": now - datetime.timedelta(minutes=15)
             },
