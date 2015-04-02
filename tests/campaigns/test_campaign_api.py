@@ -296,27 +296,37 @@ class CampaignApiCase(TestCase):
 
     def test_campaign_filter_by_active(self):
         """Test that we can filter campaigns by start date/end date."""
+        now = datetime.now()
 
-        time_now = datetime.now()
+        campaign_1 = Campaign.objects.create(
+            campaign_label="abc1",
+            start_date=now - timedelta(days=2),
+            end_date=now + timedelta(days=2)
+        )
+        _ = Campaign.objects.create(
+            campaign_label="abc3",
+            start_date=now - timedelta(days=20),
+            end_date=now - timedelta(days=15)
+        )
+        _ = Campaign.objects.create(
+            campaign_label="abc2",
+            start_date=now + timedelta(days=20),
+            end_date=now + timedelta(days=25)
+        )
 
-        campaign_3 = Campaign.objects.create(campaign_label="abc3",
-                                             start_date=time_now + timedelta(days=-2),
-                                             end_date=time_now + timedelta(days=2))
-        Campaign.objects.create(campaign_label="abc1",
-                                start_date=time_now + timedelta(days=1),
-                                end_date=time_now + timedelta(days=2))
-        Campaign.objects.create(campaign_label="abc2",
-                                start_date=time_now + timedelta(days=-2),
-                                end_date=time_now + timedelta(days=-1))
+        print(now.isoformat())
 
-        print(time_now.isoformat())
-
-        response = self.client.get(reverse("campaign-list"),
-                                   data={"start_date": time_now.isoformat(),
-                                         "end_date": time_now.isoformat()})
+        url = reverse("campaign-list")
+        data = {
+            "start_date": now.strftime("%Y-%m-%d"),
+            "end_date": now.strftime("%Y-%m-%d"),
+        }
+        response = self.client.get(url, data=data)
+        print(dir(response))
+        print(response.request)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data["results"]), 1)
-        self.assertEqual(response.data["results"][0]["id"], campaign_3.pk)
+        self.assertEqual(response.data["results"][0]["id"], campaign_1.pk)
 
 
