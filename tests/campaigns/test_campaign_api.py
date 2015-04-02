@@ -314,19 +314,13 @@ class CampaignApiCase(TestCase):
             end_date=now + timedelta(days=25)
         )
 
-        print(now.isoformat())
-
         url = reverse("campaign-list")
         data = {
             "start_date": now.strftime("%Y-%m-%d"),
             "end_date": now.strftime("%Y-%m-%d"),
         }
         response = self.client.get(url, data=data)
-        print(dir(response))
-        print(response.request)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["id"], campaign_1.pk)
-
-
