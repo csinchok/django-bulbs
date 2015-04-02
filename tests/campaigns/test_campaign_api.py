@@ -293,3 +293,30 @@ class CampaignApiCase(TestCase):
         self.assertEqual(response.data["results"][0]["id"], campaign_1.pk)
         self.assertEqual(response.data["results"][1]["id"], campaign_3.pk)
         self.assertEqual(response.data["results"][2]["id"], campaign_2.pk)
+
+    def test_campaign_filter_by_active(self):
+        """Test that we can filter campaigns by start date/end date."""
+
+        time_now = datetime.now()
+
+        campaign_3 = Campaign.objects.create(campaign_label="abc3",
+                                             start_date=time_now + timedelta(days=-2),
+                                             end_date=time_now + timedelta(days=2))
+        Campaign.objects.create(campaign_label="abc1",
+                                start_date=time_now + timedelta(days=1),
+                                end_date=time_now + timedelta(days=2))
+        Campaign.objects.create(campaign_label="abc2",
+                                start_date=time_now + timedelta(days=-2),
+                                end_date=time_now + timedelta(days=-1))
+
+        print(time_now.isoformat())
+
+        response = self.client.get(reverse("campaign-list"),
+                                   data={"start_date": time_now.isoformat(),
+                                         "end_date": time_now.isoformat()})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["id"], campaign_3.pk)
+
+
