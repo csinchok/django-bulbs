@@ -23,9 +23,8 @@ class SpecialCoverage(models.Model):
     promoted = models.BooleanField(default=False)
     campaign = models.ForeignKey(Campaign, null=True, default=None, blank=True)
 
-    @classmethod
-    def get_doc_type(cls):
-        return ".percolator"
+    def __unicode__(self):
+        return self.name
 
     def save(self, *args, **kwargs):
         """Saving ensures that the slug, if not set, is set to the slugified name."""
@@ -33,12 +32,13 @@ class SpecialCoverage(models.Model):
         if not self.slug:
             self.slug = slugify(self.name)
 
+        super(SpecialCoverage, self).save(*args, **kwargs)
+
         if self.query and self.query != {}:
             if self.active:
                 self._save_percolator()
             else:
                 self._delete_percolator()
-        return super(SpecialCoverage, self).save(*args, **kwargs)
 
     def _save_percolator(self):
         """saves the query field as an elasticsearch percolator
@@ -52,20 +52,22 @@ class SpecialCoverage(models.Model):
                     }
                 }
             }
-            try:
-                res = es.create(index=index, doc_type=self.get_doc_type(), body=q, id=self.es_id, refresh=True)
-            except Exception, e:
-                res = e
-        else:
-            res = None
-        return res
+
+            # We'll need this data, to decide which special coverage section to use
+            if self.campaign:
+                q["sponsored"] = True
+                q["start_date"] = self.campaign.start_date
+                q["end_date"] = self.campaign.end_date
+
+            res = es.index(
+                index=index,
+                doc_type=".percolator",
+                body=q,
+                id=self.es_id
+            )
 
     def _delete_percolator(self):
-        try:
-            res = es.delete(index=index, doc_type=self.get_doc_type(), id=self.es_id, refresh=True)
-        except Exception, e:
-            res = e
-        return res
+        es.delete(index=index, doc_type=".percolator", id=self.es_id, refresh=True, ignore=404)
 
     def get_content(self):
         """performs es search and gets content objects
