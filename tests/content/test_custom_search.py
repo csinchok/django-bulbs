@@ -8,7 +8,7 @@ from elastimorphic.tests.base import BaseIndexableTestCase
 from rest_framework.test import APIClient
 
 from bulbs.content.models import Content, FeatureType, Tag
-from bulbs.content.custom_search import custom_search_model
+from bulbs.content.custom_search import custom_search_model, query_is_empty
 
 from example.testcontent.models import TestContentObjTwo
 from bulbs.utils.test import BaseAPITestCase, make_content
@@ -253,7 +253,7 @@ class BaseCustomSearchFilterTests(BaseIndexableTestCase):
                 ]
             )
         )
-        # pinned 2 
+        # pinned 2
         s_pinned_2 = dict(
             label="Pinned 2 things",
             query=dict(
@@ -421,6 +421,80 @@ class BaseCustomSearchFilterTests(BaseIndexableTestCase):
         )
 
 
+class EmptyQueryTests(BaseIndexableTestCase):
+    """Check that empty query function operates properly for both empty and
+    non-empty queries."""
+
+    def test_empty_query_1(self):
+        query = {}
+        self.assertTrue(query_is_empty(query))
+
+    def test_empty_query_2(self):
+        query = {
+            "groups": []
+        }
+        self.assertTrue(query_is_empty(query))
+
+    def test_empty_query_3(self):
+        query = {
+            "groups": [],
+            "included_ids": [],
+            "excluded_ids": [],
+            "pinned_ids": []
+        }
+        self.assertTrue(query_is_empty(query))
+
+    def test_empty_query_4(self):
+        query = {
+            "groups": [{
+                "conditions": [{
+                    "values": []
+                }]
+            }]
+        }
+        self.assertTrue(query_is_empty(query))
+
+    def test_non_empty_query_1(self):
+        query = {
+            "groups": [],
+            "included_ids": [1, 2, 3]
+        }
+        self.assertFalse(query_is_empty(query))
+
+    def test_non_empty_query_2(self):
+        query = {
+            "groups": [{
+                "conditions": [{
+                    "values": []
+                }],
+                "time": "1 day or something"
+            }]
+        }
+        self.assertFalse(query_is_empty(query))
+
+    def test_non_empty_query_3(self):
+        query = {
+            "groups": [{
+                "conditions": [{
+                    "type": "all",
+                    "values": [{
+                        "value": "joe-biden",
+                        "label": "joe-biden"
+                    }],
+                    "field": "tag"
+                }]
+            }]
+        }
+        self.assertFalse(query_is_empty(query))
+
+    def test_non_empty_query_4(self):
+        query = {
+            "pinned_ids": [6],
+            "included_ids": [6]
+        }
+        self.assertFalse(query_is_empty(query))
+
+
 class CustomSearchFilterTests(BaseCustomSearchFilterTests):
     """Test the F() generating functions."""
     field_map = {
@@ -452,7 +526,7 @@ class CustomSearchFilterTests(BaseCustomSearchFilterTests):
     def test_pinned(self):
         for s, ids in self.pinned_expectations:
             self.check_ordering(s["query"], ids)
-        
+
     def check_ordering(self, query, ids):
         qs = custom_search_model(Content, query, field_map=self.field_map)
         self.assertSequenceEqual([c.id for c in qs[:len(ids)]], ids)

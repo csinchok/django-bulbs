@@ -15,7 +15,7 @@
                         ...
                     ]
                 ],
-                time: 'X days' 
+                time: 'X days'
             },
             ...
         ],
@@ -35,12 +35,44 @@ from django.utils import timezone
 from elasticutils import F
 
 
+def query_is_empty(query):
+    """Tests if a query should be considered empty"""
+
+    # start checking if there are actually some values
+    if query:
+        # there's something in query, might not be empty
+        if "groups" in query:
+            # there are some groups, check or condition values
+            for group in query["groups"]:
+
+                if "time" in group and group["time"]:
+                    # there is a time set, return not empty
+                    return False
+
+                if "conditions" in group:
+                    # there are conditions, check if any of them have a va111lue
+                    for condition in group["conditions"]:
+                        if condition["values"]:
+                            # there is a condition with at least 1 value, return not empty
+                            return False
+
+        if "included_ids" in query and query["included_ids"]:
+            # at least 1 included id, return not empty
+            return False
+
+    return True
+
+
 def custom_search_model(model, query, preview=False, published=False,
-    id_field="id", time_field="published", sort_pinned=True, field_map={}):
+                        id_field="id", time_field="published", sort_pinned=True, field_map={}):
     """Filter a model with the given filter.
 
     `field_map` translates incoming field names to the appropriate ES names.
     """
+
+
+
+
     if preview:
         func = preview_filter_from_query
     else:
@@ -84,7 +116,7 @@ def custom_search_model(model, query, preview=False, published=False,
                     "bool": {
                         "must": must_queries
                     }
-                } 
+                }
             }
         }
         # include the original filters, if present
