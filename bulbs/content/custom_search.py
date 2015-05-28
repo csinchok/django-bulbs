@@ -90,9 +90,9 @@ def preview_filter_from_query(query, id_field="id", field_map={}):
     included_ids = query.get("included_ids")
     if included_ids:
         if f:
-            f |= Terms(id=included_ids)
+            f |= Terms(pk=included_ids)
         else:
-            f = Terms(id=included_ids)
+            f = Terms(pk=included_ids)
     return f
 
 
@@ -106,15 +106,15 @@ def filter_from_query(query, id_field="id", field_map={}):
 
     if included_ids:  # include these, please
         if f is None:
-            f = Terms(id=included_ids)
+            f = Terms(pk=included_ids)
         else:
-            f |= Terms(id=included_ids)
+            f |= Terms(pk=included_ids)
 
     if excluded_ids:  # exclude these
         if f is None:
             f = MatchAll()
 
-        f &= ~Terms(id=excluded_ids)
+        f &= ~Terms(pk=excluded_ids)
     return f
 
 
