@@ -51,8 +51,6 @@ class SpecialCoverage(models.Model):
 
         if "query" in query_filter:
             q = {"query": query_filter.get("query", {})}
-            if "query" in q["query"]["filtered"]:
-                del q["query"]["filtered"]["query"]
         else:
             # We don't know how to save this
             return
