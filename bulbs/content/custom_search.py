@@ -70,7 +70,7 @@ def custom_search_model(model, query, preview=False, published=False,
         pinned_query = es_query.FunctionScore(
             boost_mode="multiply",
             functions=[{
-                "filter": Terms(_id=pinned_ids),
+                "filter": Terms(id=pinned_ids),
                 "weight": 2
             }]
         )
@@ -90,9 +90,9 @@ def preview_filter_from_query(query, id_field="id", field_map={}):
     included_ids = query.get("included_ids")
     if included_ids:
         if f:
-            f |= Terms(_id=included_ids)
+            f |= Terms(id=included_ids)
         else:
-            f = Terms(_id=included_ids)
+            f = Terms(id=included_ids)
     return f
 
 
@@ -106,15 +106,15 @@ def filter_from_query(query, id_field="id", field_map={}):
 
     if included_ids:  # include these, please
         if f is None:
-            f = Terms(_id=included_ids)
+            f = Terms(id=included_ids)
         else:
-            f |= Terms(_id=included_ids)
+            f |= Terms(id=included_ids)
 
     if excluded_ids:  # exclude these
         if f is None:
             f = MatchAll()
 
-        f &= ~Terms(_id=excluded_ids)
+        f &= ~Terms(id=excluded_ids)
     return f
 
 
