@@ -46,6 +46,7 @@ class Tag(PolymorphicModel, Indexable):
 
     class Mapping:
         name = field.String(index="not_analyzed", fields={"autocomplete": field.String(analyzer="autocomplete")})
+        type = field.String(index="not_analyzed",)
 
     search_objects = TagManager()
 
@@ -53,6 +54,10 @@ class Tag(PolymorphicModel, Indexable):
         """unicode friendly name
         """
         return '%s: %s' % (self.__class__.__name__, self.name)
+
+    @property
+    def type(self):
+        return "{}_{}".format(self._meta.app_label, self._meta.model_name)
 
     def save(self, *args, **kwargs):
         """sets the `slug` values as the name
