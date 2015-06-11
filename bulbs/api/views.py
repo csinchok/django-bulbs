@@ -262,8 +262,9 @@ class TagViewSet(UncachedResponse, viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         queryset = Tag.search_objects.search()
         if "search" in self.request.REQUEST:
-            query_string = self.request.REQUEST["search"].lower()
-            queryset = queryset.query(Q("match", **{"name.autocomplete": query_string}) | Q("match", name=query_string))
+            query_string = self.request.REQUEST["search"]
+            queryset = queryset.query(Q("match", **{"name.autocomplete": query_string}) | Q("constant_score", query=Q("match", name=query_string), boost=2))
+            import pdb; pdb.set_trace()
         return queryset
 
 class UserViewSet(UncachedResponse, viewsets.ModelViewSet):
