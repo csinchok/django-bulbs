@@ -1,15 +1,19 @@
+from django.core.management import call_command
+from django.utils.six import StringIO
+
 from bulbs.content.models import Content
 from bulbs.sections.models import Section
 from bulbs.special_coverage.models import SpecialCoverage
 from bulbs.utils.percolator import (
-    clean_deprecated_percolators, delete_percolator, get_query_id_list, object_exists
+    clean_deprecated_class_percolators, delete_percolator, get_deprecated_queries,
+    get_percolator_class, get_query_id_list
 )
 from bulbs.utils.test import BaseIndexableTestCase
 
 
-class SectionPercolatorTests(BaseIndexableTestCase):
+class PercolatorTests(BaseIndexableTestCase):
     def setUp(self):
-        super(SectionPercolatorTests, self).setUp()
+        super(PercolatorTests, self).setUp()
         self.index = Content.search_objects.mapping.index
         self.doc_type = '.percolator',
         self.base_query = {
@@ -27,7 +31,6 @@ class SectionPercolatorTests(BaseIndexableTestCase):
             'included_ids': [],
             'pinned_ids': []
         }
-
         # Add bad data to be cleared out.
         query = self.base_query
         query['groups'][0]['conditions'][0]['values'][0] = {
@@ -41,81 +44,6 @@ class SectionPercolatorTests(BaseIndexableTestCase):
             'value': 's-1000'
         }
         Section(name='1000 section', id=1000, query=query)._save_percolator()
-        for i in range(5):
-            query = self.base_query
-            query['groups'][0]['conditions'][0]['values'][0] = {
-                'name': 's-{}'.format(i),
-                'value': 's-{}'.format(i)
-            }
-
-            s = Section.objects.create(name='section.{}'.format(i), query=query)
-            s.save()
-        Section.search_objects.refresh()
-
-    def test_query_id_list(self):
-        id_list = get_query_id_list(self.es, self.index, self.doc_type)
-        expected_list = [
-            'section.1', 'section.2', 'section.3', 'section.4', 'section.5', 'section.None',
-            'section.1000'
-        ]
-        self.assertItemsEqual(expected_list, id_list)
-
-    def test_section_object_exists_by_es_id(self):
-        self.assertTrue(object_exists(Section, 'section.1'))
-        self.assertTrue(object_exists(Section, 'section.2'))
-        self.assertTrue(object_exists(Section, 'section.3'))
-        self.assertTrue(object_exists(Section, 'section.4'))
-        self.assertTrue(object_exists(Section, 'section.5'))
-        self.assertFalse(object_exists(Section, 'section.None'))
-        self.assertFalse(object_exists(Section, 'section.1000'))
-
-    def test_section_object_exists_by_id(self):
-        self.assertTrue(object_exists(Section, 1))
-        self.assertTrue(object_exists(Section, 2))
-        self.assertTrue(object_exists(Section, 3))
-        self.assertTrue(object_exists(Section, 4))
-        self.assertTrue(object_exists(Section, 5))
-        self.assertFalse(object_exists(Section, None))
-        self.assertFalse(object_exists(Section, 1000))
-
-    def test_delete_percolator(self):
-        delete_percolator(self.es, self.index, self.doc_type, 'section.None')
-        Section.search_objects.refresh()
-        id_list = get_query_id_list(self.es, self.index, self.doc_type)
-        expected_list = [
-            'section.1', 'section.2', 'section.3', 'section.4', 'section.5', 'section.1000'
-        ]
-        self.assertItemsEqual(expected_list, id_list)
-
-    def test_clean_deprecated_percolators_sections(self):
-        clean_deprecated_percolators(Section)
-        Section.search_objects.refresh()
-        id_list = get_query_id_list(self.es, self.index, self.doc_type)
-        expected_list = ['section.1', 'section.2', 'section.3', 'section.4', 'section.5']
-        self.assertItemsEqual(expected_list, id_list)
-
-
-class SpecialCoveragePercolatorTests(BaseIndexableTestCase):
-    def setUp(self):
-        super(SpecialCoveragePercolatorTests, self).setUp()
-        self.index = Content.search_objects.mapping.index
-        self.doc_type = '.percolator',
-        self.base_query = {
-            'excluded_ids': [],
-            'groups': [{
-                'conditions': [{
-                    'field': 'tag',
-                    'type': 'any',
-                    'values': [{
-                        'name': '',
-                        'value': ''
-                    }]
-                }],
-            }],
-            'included_ids': [],
-            'pinned_ids': []
-        }
-
         # Add bad data to be cleared out.
         query = self.base_query
         query['groups'][0]['conditions'][0]['values'][0] = {
@@ -129,61 +57,117 @@ class SpecialCoveragePercolatorTests(BaseIndexableTestCase):
             'value': 'special-1000'
         }
         SpecialCoverage(name='1000 special', id=1000, query=query)._save_percolator()
-        for i in range(5):
+        for i in range(2):
             query = self.base_query
             query['groups'][0]['conditions'][0]['values'][0] = {
-                'name': 'special-{}'.format(i),
-                'value': 'special-{}'.format(i)
+                'name': 's-{}'.format(i),
+                'value': 's-{}'.format(i)
             }
 
-            s = SpecialCoverage.objects.create(
-                name='special.{}'.format(i), active=True, query=query
+            section = Section.objects.create(name='section.{}'.format(i), query=query)
+            section.save()
+            special = SpecialCoverage.objects.create(
+                name='special.{}'.format(i), query=query, active=True
             )
-            s.save()
+            special.save()
+
+        q = {
+            'query': {
+                'filtered': {
+                    'filter': {
+                        'nested': {
+                            'filter': {
+                                'terms': {
+                                    'tags.slug': ['recent']
+                                }
+                            },
+                            'path': 'tags'
+                        }
+                    },
+                    'query': {
+                        'match_all': {}
+                    }
+                }
+            }
+        }
+        self.es.index(index=self.index, doc_type=self.doc_type, body=q, id='recent')
+        self.es.index(index=self.index, doc_type=self.doc_type, body=q, id='popular')
         Content.search_objects.refresh()
 
     def test_query_id_list(self):
         id_list = get_query_id_list(self.es, self.index, self.doc_type)
         expected_list = [
-            'specialcoverage.1', 'specialcoverage.2', 'specialcoverage.3', 'specialcoverage.4',
-            'specialcoverage.5', 'specialcoverage.None', 'specialcoverage.1000'
+            'section.1', 'section.2', 'section.1000', 'section.None', 'specialcoverage.1',
+            'specialcoverage.2', 'specialcoverage.1000', 'specialcoverage.None', 'recent',
+            'popular'
         ]
         self.assertItemsEqual(expected_list, id_list)
-
-    def test_specialcoverage_object_exists_by_es_id(self):
-        self.assertTrue(object_exists(SpecialCoverage, 'specialcovearge.1'))
-        self.assertTrue(object_exists(SpecialCoverage, 'specialcovearge.2'))
-        self.assertTrue(object_exists(SpecialCoverage, 'specialcovearge.3'))
-        self.assertTrue(object_exists(SpecialCoverage, 'specialcovearge.4'))
-        self.assertTrue(object_exists(SpecialCoverage, 'specialcovearge.5'))
-        self.assertFalse(object_exists(SpecialCoverage, 'specialcovearge.None'))
-        self.assertFalse(object_exists(SpecialCoverage, 'specialcovearge.1000'))
-
-    def test_specialcoverage_object_exists_by_id(self):
-        self.assertTrue(object_exists(SpecialCoverage, 1))
-        self.assertTrue(object_exists(SpecialCoverage, 2))
-        self.assertTrue(object_exists(SpecialCoverage, 3))
-        self.assertTrue(object_exists(SpecialCoverage, 4))
-        self.assertTrue(object_exists(SpecialCoverage, 5))
-        self.assertFalse(object_exists(SpecialCoverage, None))
-        self.assertFalse(object_exists(SpecialCoverage, 1000))
 
     def test_delete_percolator(self):
-        delete_percolator(self.es, self.index, self.doc_type, 'specialcoverage.None')
-        Content.search_objects.refresh()
+        delete_percolator(self.es, self.index, self.doc_type, 'section.None')
+        Section.search_objects.refresh()
         id_list = get_query_id_list(self.es, self.index, self.doc_type)
         expected_list = [
-            'specialcoverage.1', 'specialcoverage.2', 'specialcoverage.3', 'specialcoverage.4',
-            'specialcoverage.5', 'specialcoverage.1000'
+            'section.1', 'section.2', 'section.1000', 'specialcoverage.1', 'specialcoverage.2',
+            'specialcoverage.1000', 'specialcoverage.None', 'recent', 'popular'
         ]
         self.assertItemsEqual(expected_list, id_list)
 
-    def test_clean_deprecated_percolators_special_coverage(self):
-        clean_deprecated_percolators(SpecialCoverage)
+    def test_get_percolator_class(self):
+        cls = get_percolator_class('section.1')
+        self.assertEqual(cls, Section)
+        cls = get_percolator_class('section.None')
+        self.assertEqual(cls, Section)
+        cls = get_percolator_class('section.')
+        self.assertIsNone(cls)
+        cls = get_percolator_class('specialcoverage.1')
+        self.assertEqual(cls, SpecialCoverage)
+        cls = get_percolator_class('specialcoverage.None')
+        self.assertEqual(cls, SpecialCoverage)
+        cls = get_percolator_class('specialcoverage.')
+        self.assertIsNone(cls)
+        cls = get_percolator_class('popular')
+        self.assertIsNone(cls)
+        cls = get_percolator_class('recent')
+        self.assertIsNone(cls)
+
+    def test_get_deprecated_queries(self):
+        queries = get_deprecated_queries()
+        expected_list = [
+            'section.1000', 'section.None', 'specialcoverage.1000', 'specialcoverage.None'
+        ]
+        self.assertItemsEqual(expected_list, queries)
+
+    def test_clean_deprecated_class_percolators_sections(self):
+        clean_deprecated_class_percolators()
         Content.search_objects.refresh()
         id_list = get_query_id_list(self.es, self.index, self.doc_type)
         expected_list = [
-            'specialcoverage.1', 'specialcoverage.2', 'specialcoverage.3',
-            'specialcoverage.4', 'specialcoverage.5'
+            'section.1', 'section.2', 'specialcoverage.1', 'specialcoverage.2', 'recent', 'popular'
         ]
         self.assertItemsEqual(expected_list, id_list)
+
+    def test_call_clean_percolator_command(self):
+        call_command('clean_percolator')
+        id_list = get_query_id_list(self.es, self.index, self.doc_type)
+        expected_list = [
+            'section.1', 'section.2', 'specialcoverage.1', 'specialcoverage.2', 'recent', 'popular'
+        ]
+        self.assertItemsEqual(expected_list, id_list)
+
+    def test_call_clean_percolator_command_check(self):
+        out = StringIO()
+        call_command('clean_percolator', '--check', stdout=out)
+        id_list = get_query_id_list(self.es, self.index, self.doc_type)
+        expected_list = [
+            'section.1', 'section.2', 'section.1000', 'section.None', 'specialcoverage.1',
+            'specialcoverage.2', 'specialcoverage.1000', 'specialcoverage.None', 'recent',
+            'popular'
+        ]
+        self.assertItemsEqual(expected_list, id_list)
+        output = out.getvalue()
+        bad_queries = output.split('\n')
+        expected_list = [
+            'section.1000', 'section.None', 'specialcoverage.1000', 'specialcoverage.None'
+        ]
+        self.assertItemsEqual(expected_list, bad_queries[:-1])

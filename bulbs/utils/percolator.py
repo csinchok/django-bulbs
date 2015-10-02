@@ -3,7 +3,14 @@ import re
 from elasticsearch_dsl.connections import connections
 
 from bulbs.content.models import Content
-# from bulbs.sections.models import Section
+from bulbs.sections.models import Section
+from bulbs.special_coverage.models import SpecialCoverage
+
+
+PERCOLATOR_PATTERNS = {
+    'section.(\w+)': Section,
+    'specialcoverage.(\w+)': SpecialCoverage
+}
 
 
 def get_query_id_list(es, index, doc_type):
@@ -27,25 +34,37 @@ def delete_percolator(es, index, doc_type, es_id):
     es.delete(index=index, doc_type='.percolator', id=es_id, refresh=True, ignore=404)
 
 
-def object_exists(cls, id):
+def get_percolator_class(es_id):
+    for pattern, model in PERCOLATOR_PATTERNS.items():
+        if re.match(pattern, es_id):
+            return model
+    return None
+
+
+def class_percolator_is_valid(cls, es_id):
+    id = es_id.split('.')[-1]
     if not str(id).isdigit():
-        pattern = '(\w+)\.(\d+)'
-        if re.match(pattern, str(id)):
-            id = int(id.split('.')[-1])
-            return object_exists(cls, id)
         return False
     return cls.objects.filter(id=int(id)).exists()
 
 
-def clean_deprecated_percolators(cls):
+def get_deprecated_queries():
+    bad_queries = list()
     index = Content.search_objects.mapping.index
     doc_type = '.percolator'
-
-    if not hasattr(cls, 'es_id'):
-        raise TypeError('The provided class does not store a query in the Percolator.')
-
     es = connections.get_connection('default')
-    _ids = get_query_id_list(es, index, doc_type)
-    for _id in _ids:
-        if not object_exists(cls, _id):
-            delete_percolator(es, index, doc_type, _id)
+    es_ids = get_query_id_list(es, index, doc_type)
+    for es_id in es_ids:
+        cls = get_percolator_class(es_id)
+        if cls and not class_percolator_is_valid(cls, es_id):
+            bad_queries.append(es_id)
+    return bad_queries
+
+
+def clean_deprecated_class_percolators():
+    index = Content.search_objects.mapping.index
+    doc_type = '.percolator'
+    es = connections.get_connection('default')
+    bad_queries = get_deprecated_queries()
+    for es_id in bad_queries:
+        delete_percolator(es, index, doc_type, es_id)
