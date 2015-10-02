@@ -1,5 +1,7 @@
 from django.utils import timezone
 
+from elasticsearch_dsl.connections import connections
+
 from bulbs.content.models import Content, Tag
 from bulbs.sections.models import Section
 from bulbs.utils.test import BaseIndexableTestCase, make_content
@@ -12,7 +14,7 @@ class BaseCustomSearchFilterTests(BaseIndexableTestCase):
             "Video", "Politics", "Sports", "Local", "Business", "Entertainment",
             "Science & Technology",
         )
-        
+
         tags = []
         for name in section_type_names:
             tags.append(Tag.objects.create(name=name))
@@ -20,27 +22,27 @@ class BaseCustomSearchFilterTests(BaseIndexableTestCase):
         content_data = (
             dict(
                 title="Must watch",
-                tags=[0,],
+                tags=[0, ],
             ),
             dict(
                 title="I can't bloody believe Mitt Romney dang it!",
-                tags=[1,],
+                tags=[1, ],
             ),
             dict(
                 title="Jebbin it",
-                tags=[1,],
+                tags=[1, ],
             ),
             dict(
                 title="Derrick Rose found healthy",
-                tags=[2,],
+                tags=[2, ],
             ),
             dict(
                 title="Chill Area Man",
-                tags=[3,],
+                tags=[3, ],
             ),
             dict(
                 title="Exelon goes green",
-                tags=[4,],
+                tags=[4, ],
             ),
             dict(
                 title="Koch Brothers fund area man's rock opera",
@@ -48,11 +50,11 @@ class BaseCustomSearchFilterTests(BaseIndexableTestCase):
             ),
             dict(
                 title="Shania Twain unimpressed",
-                tags=[5,],
+                tags=[5, ],
             ),
             dict(
                 title="Tiny microbug",
-                tags=[6,],
+                tags=[6, ],
             ),
         )
 
@@ -84,7 +86,7 @@ class BaseCustomSearchFilterTests(BaseIndexableTestCase):
                                                 'label': t.slug
                                             }
                                         ]
-                                    }         
+                                    }
                                 ]
                             },
                         ]
@@ -108,14 +110,45 @@ class SectionQueryTests(BaseCustomSearchFilterTests):
 
     def setUp(self):
         super(SectionQueryTests, self).setUp()
+        self.es = connections.get_connection('default')
+
+    def test_es_id(self):
+        """The percolator should only save after the Section is stored in the database."""
+        section_obj = Section(
+            name='analyze this',
+            query={
+                'label': 'analyze_this',
+                'query': {
+                    'groups': [{
+                        'conditions': [{
+                            'type': 'all',
+                            'field': 'tag',
+                            'values': [{
+                                'value': 'analyze_this',
+                                'label': 'analyze_this'
+                            }]
+                        }]
+                    }]
+                }
+            }
+        )
+        section_obj.save()
+        Section.search_objects.refresh()
+
+        results = self.es.search(index=section_obj.mapping.index, doc_type='.percolator')
+        hits = results['hits']['hits']
+        self.assertEqual(len(hits), 1)
+        es_id = hits[0]['_id']
+        self.assertNotEqual(es_id.split('.')[-1], 'None')
+        self.assertEqual(es_id, 'section.{}'.format(section_obj.id))
 
     def test_get_content(self):
         query = self.queries['Video']['query']
         section = Section.objects.create(
             name="Video",
             description="meh",
-            query = query
-        
+            query=query
+
         )
         res = section.get_content()
         self.assertEqual(res.count(), 1)
@@ -127,8 +160,8 @@ class SectionQueryTests(BaseCustomSearchFilterTests):
         section = Section.objects.create(
             name="Politics",
             description="meh",
-            query = query
-        
+            query=query
+
         )
         res = section.get_content()
         self.assertEqual(res.count(), 2)
@@ -140,8 +173,8 @@ class SectionQueryTests(BaseCustomSearchFilterTests):
         section = Section.objects.create(
             name="Sports",
             description="meh",
-            query = query
-        
+            query=query
+
         )
         res = section.get_content()
         self.assertEqual(res.count(), 1)
@@ -153,8 +186,8 @@ class SectionQueryTests(BaseCustomSearchFilterTests):
         section = Section.objects.create(
             name="Local",
             description="meh",
-            query = query
-        
+            query=query
+
         )
         res = section.get_content()
         self.assertEqual(res.count(), 2)
@@ -166,8 +199,8 @@ class SectionQueryTests(BaseCustomSearchFilterTests):
         section = Section.objects.create(
             name="Business",
             description="meh",
-            query = query
-        
+            query=query
+
         )
         res = section.get_content()
         self.assertEqual(res.count(), 2)
@@ -179,8 +212,8 @@ class SectionQueryTests(BaseCustomSearchFilterTests):
         section = Section.objects.create(
             name="Entertainment",
             description="meh",
-            query = query
-        
+            query=query
+
         )
         res = section.get_content()
         self.assertEqual(res.count(), 1)
@@ -192,8 +225,8 @@ class SectionQueryTests(BaseCustomSearchFilterTests):
         section = Section.objects.create(
             name="Science & Technology",
             description="meh",
-            query = query
-        
+            query=query
+
         )
         res = section.get_content()
         self.assertEqual(res.count(), 1)

@@ -27,7 +27,9 @@ class Section(Indexable):
     query = JSONField(default={}, blank=True)
 
     class Mapping:
-        name = field.String(analyzer="autocomplete", fields={"raw": field.String(index="not_analyzed")})
+        name = field.String(
+            analyzer="autocomplete", fields={"raw": field.String(index="not_analyzed")}
+        )
         slug = field.String(index="not_analyzed")
         section_logo = ElasticsearchImageField()
         query = field.Object(enabled=False)
@@ -37,14 +39,15 @@ class Section(Indexable):
 
     def save(self, *args, **kwargs):
         """Saving ensures that the slug, if not set, is set to the slugified name."""
-
         if not self.slug:
             self.slug = slugify(self.name)
+
+        section = super(Section, self).save(*args, **kwargs)
 
         if self.query and self.query != {}:
             self._save_percolator()
 
-        return super(Section, self).save(*args, **kwargs)
+        return section
 
     def _save_percolator(self):
         """saves the query field as an elasticsearch percolator
@@ -81,7 +84,7 @@ class Section(Indexable):
             "feature-type": "feature_type.slug",
             "tag": "tags.slug",
             "content-type": "_type",
-            })
+        })
         return search
 
     @property
