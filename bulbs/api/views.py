@@ -2,6 +2,7 @@
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.db.models.loading import get_models
 from django.http import Http404
 from django.utils import timezone
@@ -215,19 +216,31 @@ class ContentViewSet(UncachedResponse, viewsets.ModelViewSet):
         # Check if the contribution app is installed
         if Contribution not in get_models():
             return Response([])
-        queryset = Contribution.objects.filter(content=self.get_object())
+
+        content = self.get_object()
+        cache_key = 'content-{}-contributions'.format(content.id)
+
+        queryset = Contribution.objects.filter(content=content)
         if request.method == "POST":
             serializer = ContributionSerializer(
                 queryset,
                 data=get_request_data(request),
-                many=True)
+                many=True
+            )
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             serializer.save()
-            return Response(serializer.data)
+
+            resp = Response(serializer.data)
+            cache.set(cache_key, resp)
+            return resp
         else:
-            serializer = ContributionSerializer(queryset, many=True)
-            return Response(serializer.data)
+            resp = cache.get(cache_key)
+            if resp:
+                return resp
+            else:
+                serializer = ContributionSerializer(queryset, many=True)
+                return Response(serializer.data)
 
     @detail_route(methods=["post"], permission_classes=[CanEditContent])
     def create_token(self, request, **kwargs):
