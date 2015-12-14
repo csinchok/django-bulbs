@@ -5,7 +5,7 @@ from django.db import models
 from elasticsearch_dsl import field
 from djes.models import Indexable, IndexableManager
 
-from bulbs.content.models import Content, ContentManager, FeatureType
+from bulbs.content.models import Content, FeatureType
 
 
 FLAT_RATE = 0
@@ -83,7 +83,7 @@ class ContributorField(field.Object):
         return data
 
     def to_python(self, data):
-        User = get_user_model()
+        User = get_user_model()  # noqa
         user = User.objects.filter(id=data['id'])
         if user.exists():
             return user.first()
@@ -181,6 +181,18 @@ class ContributorRole(Indexable):
         return None
 
 
+class ContributionManager(IndexableManager):
+    """
+    Manually manage the Elasticsearch Document & Python relationship.
+    """
+
+    def from_es(self, hit):
+        pay = hit['_source'].pop('pay')
+        obj = super(ContributionManager, self).from_es(hit)
+        obj.pay = pay
+        return obj
+
+
 class Contribution(Indexable):
     role = models.ForeignKey(ContributorRole)
     contributor = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="contributions")
@@ -190,7 +202,9 @@ class Contribution(Indexable):
     force_payment = models.BooleanField(default=False)
     payment_date = models.DateTimeField(null=True, blank=True)
 
-    search_objects = IndexableManager()
+    pay = 0
+
+    search_objects = ContributionManager()
 
     class Mapping:
 
@@ -202,13 +216,10 @@ class Contribution(Indexable):
             dynamic = False
             excludes = ('content', 'contributor')
 
-    @property
-    def pay(self):
-        return self.get_pay
-
-    @property
-    def get_pay(self):
-        return self._get_pay()
+    def to_dict(self):
+        data = super(Contribution, self).to_dict()
+        data['pay'] = self._get_pay()
+        return data
 
     @property
     def get_override(self):
