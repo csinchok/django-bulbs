@@ -374,7 +374,7 @@ class FreelanceProfile(Indexable):
 
         pay = 0
         for contribution in qs.all():
-            contribution_pay = contribution.get_pay
+            contribution_pay = contribution.pay
             if contribution_pay:
                 pay += contribution_pay
         return pay

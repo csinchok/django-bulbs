@@ -491,7 +491,7 @@ class ContributionReportingSerializer(serializers.ModelSerializer):
         return obj.role.name
 
     def get_pay(self, obj):
-        return obj.get_pay
+        return obj.pay
 
     def get_rate(self, obj):
         rate = obj.get_rate()
@@ -566,7 +566,7 @@ class ContentReportingSerializer(serializers.ModelSerializer):
 
         total_cost = 0
         for contribution in contributions:
-            cost = contribution.get_pay
+            cost = contribution.pay
             if cost:
                 total_cost += cost
         return total_cost

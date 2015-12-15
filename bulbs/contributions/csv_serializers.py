@@ -22,7 +22,7 @@ class ContributionCSVSerializer(serializers.ModelSerializer):
             'title': obj.content.title,
             'feature_type': obj.content.feature_type,
             'publish_date': obj.content.published,
-            'rate': obj.get_pay,
+            'rate': obj.pay,
             'payroll_name': full_name
         }
         profile = getattr(obj.contributor, 'freelanceprofile', None)

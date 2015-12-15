@@ -16,8 +16,9 @@ class PixelTypeField(serializers.Field):
     def to_internal_value(self, data):
         if isinstance(data, int):
             return data
-        return dict((label, value)
-                for value, label in CampaignPixel.PIXEL_TYPES)[data]
+        return dict(
+            (label, value) for value, label in CampaignPixel.PIXEL_TYPES
+        )[data]
 
 
 class CampaignPixelField(serializers.ModelSerializer):
