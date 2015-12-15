@@ -489,9 +489,6 @@ class ContributionReportingSerializer(serializers.ModelSerializer):
     def get_role(self, obj):
         return obj.role.name
 
-    def get_pay(self, obj):
-        return obj.pay
-
     def get_rate(self, obj):
         rate = obj.get_rate()
         if isinstance(rate, HourlyRate):

@@ -1,23 +1,24 @@
-from rest_framework_csv.renderers import CSVRenderer
+from rest_framework_csv.renderers import CSVStreamingRenderer
 
 
-class HeaderCSVRenderer(CSVRenderer):
+class HeaderCSVStreamingRenderer(CSVStreamingRenderer):
 
     results_field = 'results'
 
     def render(self, data, media_type=None, renderer_context=None):
         if not isinstance(data, list):
             data = data.get(self.results_field, [])
-        return super(HeaderCSVRenderer, self).render(
+        renderer = super(HeaderCSVStreamingRenderer, self).render(
             data, media_type=media_type, renderer_context=renderer_context
         )
+        return renderer
 
     def tablize(self, data):
         """
         rest_framework_csv doesn't let us easily set headers.
         So this will by defining the header_fields attribute.
         """
-        table = super(HeaderCSVRenderer, self).tablize(data)
+        table = super(HeaderCSVStreamingRenderer, self).tablize(data)
         if self.header_fields:
             header_row = []
             for key in table[0]:
@@ -26,7 +27,7 @@ class HeaderCSVRenderer(CSVRenderer):
         return table
 
 
-class ContributionReportingRenderer(HeaderCSVRenderer):
+class ContributionReportingRenderer(HeaderCSVStreamingRenderer):
 
     header_fields = {
         'id': 'Content ID',

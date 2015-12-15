@@ -7,7 +7,7 @@ from django.utils import dateparse, timezone
 from rest_framework import viewsets, routers, mixins
 from rest_framework.settings import api_settings
 from rest_framework.response import Response
-from rest_framework_csv.renderers import CSVRenderer
+from rest_framework_csv.renderers import CSVStreamingRenderer
 
 from elasticsearch_dsl import filter as es_filter
 
@@ -49,7 +49,7 @@ class OverrideProfileViewSet(viewsets.ModelViewSet):
 
 class ContentReportingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
 
-    renderer_classes = (CSVRenderer, ) + tuple(api_settings.DEFAULT_RENDERER_CLASSES)
+    renderer_classes = (CSVStreamingRenderer, ) + tuple(api_settings.DEFAULT_RENDERER_CLASSES)
     serializer_class = ContentReportingSerializer
     paginate_by = 20
 
@@ -143,9 +143,9 @@ class ReportingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
         if format == 'csv':
             queryset = self.get_queryset()
             queryset = queryset[:queryset.count()]
-            data = {
-                'results': queryset
-            }
+            # data = {
+            #     'results': queryset
+            # }
             serializer = self.get_serializer(queryset, many=True)
             return Response(serializer.data)
         return super(ReportingViewSet, self).list(request)
@@ -203,7 +203,7 @@ class ReportingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
 
 class FreelanceReportingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
 
-    renderer_classes = (CSVRenderer, ) + tuple(api_settings.DEFAULT_RENDERER_CLASSES)
+    renderer_classes = (CSVStreamingRenderer, ) + tuple(api_settings.DEFAULT_RENDERER_CLASSES)
     serializer_class = FreelanceProfileSerializer
     paginate_by = 20
 
