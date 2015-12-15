@@ -59,6 +59,8 @@ class ContentField(field.Object):
         return doc
 
     def to_python(self, data):
+        if isinstance(data, Content):
+            return data
         return Content.objects.get(id=data['id'])
 
 
@@ -187,9 +189,9 @@ class ContributionManager(IndexableManager):
     """
 
     def from_es(self, hit):
-        pay = hit['_source'].pop('pay')
+        pay = hit['_source'].pop('pay', 0)
         obj = super(ContributionManager, self).from_es(hit)
-        obj.pay = pay
+        setattr(obj, 'pay', pay)
         return obj
 
 
@@ -202,24 +204,29 @@ class Contribution(Indexable):
     force_payment = models.BooleanField(default=False)
     payment_date = models.DateTimeField(null=True, blank=True)
 
-    pay = 0
+    # _pay = None
 
     search_objects = ContributionManager()
 
     class Mapping:
-
         content = ContentField()
         contributor = ContributorField()
-        pay = field.Long()
+
+        pay = field.Integer()
 
         class Meta:
             dynamic = False
             excludes = ('content', 'contributor')
 
-    def to_dict(self):
-        data = super(Contribution, self).to_dict()
-        data['pay'] = self._get_pay()
-        return data
+    @property
+    def pay(self):
+        if not hasattr(self, '_pay'):
+            self._pay = self._get_pay()
+        return self._pay
+
+    @pay.setter
+    def pay(self, value):
+        self._pay = value
 
     @property
     def get_override(self):

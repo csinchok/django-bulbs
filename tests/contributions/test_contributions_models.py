@@ -40,7 +40,7 @@ class ContributionModelTestCase(BaseIndexableTestCase):
         super(ContributionModelTestCase, self).tearDown()
 
     def test_elasticsearch(self):
-        # Test elasticsearch pay
+        # Test elasticsearch pay.
         ft_rate = FeatureTypeRate.objects.get(
             role=self.roles['big-dog'],
             feature_type=self.feature_types['tv-club']
@@ -57,3 +57,5 @@ class ContributionModelTestCase(BaseIndexableTestCase):
         self.assertEqual(elastic_queryset.count(), 1)
         ec = elastic_queryset[0]
         self.assertEqual(ec.pay, 200)
+        pay = Contribution.objects.first().pay
+        self.assertEqual(pay, 200)
