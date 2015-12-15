@@ -403,16 +403,16 @@ class RatePayTestCase(BaseIndexableTestCase):
 
     def test_get_pay_flat_rate(self):
         contribution = self.contributions['flatrate']
-        self.assertEqual(contribution.get_pay, 200)
+        self.assertEqual(contribution.pay, 200)
 
     def test_get_override_flat_rate(self):
         FlatRateOverride.objects.create(
             profile=self.overrides['jarvis']['flatrate'],
             rate=80
         )
-        contribution = self.contributions['flatrate']
+        contribution = Contribution.objects.get(id=self.contributions['flatrate'].id)
         self.assertEqual(contribution.get_override, 80)
-        self.assertEqual(contribution.get_pay, 80)
+        self.assertEqual(contribution.pay, 80)
 
     def test_get_contribution_override_flat_rate(self):
         """Contribution overrides should have priority over role overrides"""
@@ -432,8 +432,9 @@ class RatePayTestCase(BaseIndexableTestCase):
             contribution=self.contributions['flatrate'],
             rate=44
         )
-        self.assertEqual(self.contributions['flatrate'].get_override, 44)
-        self.assertEqual(self.contributions['flatrate'].get_pay, 44)
+        contribution = Contribution.objects.get(id=self.contributions['flatrate'].id)
+        self.assertEqual(contribution.get_override, 44)
+        self.assertEqual(contribution.pay, 44)
 
     def test_get_rate_feature_type(self):
         contribution = self.contributions['featuretype']['tvclub']
@@ -465,10 +466,10 @@ class RatePayTestCase(BaseIndexableTestCase):
 
     def test_get_pay_feature_type(self):
         contribution = self.contributions['featuretype']['tvclub']
-        self.assertEqual(contribution.get_pay, 30)
+        self.assertEqual(contribution.pay, 30)
 
         contribution = self.contributions['featuretype']['news']
-        self.assertEqual(contribution.get_pay, 50)
+        self.assertEqual(contribution.pay, 50)
 
     def test_get_override_feature_type(self):
         FeatureTypeOverride.objects.create(
@@ -476,18 +477,18 @@ class RatePayTestCase(BaseIndexableTestCase):
             feature_type=self.feature_types['tvclub'],
             rate=22
         )
-        contribution = self.contributions['featuretype']['tvclub']
+        contribution = Contribution.objects.get(id=self.contributions['featuretype']['tvclub'].id)
         self.assertEqual(contribution.get_override, 22)
-        self.assertEqual(contribution.get_pay, 22)
+        self.assertEqual(contribution.pay, 22)
 
         FeatureTypeOverride.objects.create(
             profile=self.overrides['jarvis']['featuretype'],
             feature_type=self.feature_types['tvclub'],
             rate=33
         )
-        contribution = self.contributions['featuretype']['tvclub']
+        contribution = Contribution.objects.get(id=self.contributions['featuretype']['tvclub'].id)
         self.assertEqual(contribution.get_override, 33)
-        self.assertEqual(contribution.get_pay, 33)
+        self.assertEqual(contribution.pay, 33)
 
     def test_get_contribution_override_feature_type(self):
         """Contribution overrides should have priority over feature type overrides"""
@@ -508,8 +509,9 @@ class RatePayTestCase(BaseIndexableTestCase):
             contribution=self.contributions['featuretype']['tvclub'],
             rate=44
         )
-        self.assertEqual(self.contributions['featuretype']['tvclub'].get_override, 44)
-        self.assertEqual(self.contributions['featuretype']['tvclub'].get_pay, 44)
+        contribution = Contribution.objects.get(id=self.contributions['featuretype']['tvclub'].id)
+        self.assertEqual(contribution.get_override, 44)
+        self.assertEqual(contribution.pay, 44)
 
     def test_get_rate_hourly(self):
         contribution = self.contributions['hourly']
@@ -520,15 +522,17 @@ class RatePayTestCase(BaseIndexableTestCase):
     def test_get_pay_hourly(self):
         contribution = self.contributions['hourly']
         self.assertEqual(contribution.minutes_worked, 30)
-        self.assertEqual(contribution.get_pay, 30)
+        self.assertEqual(contribution.pay, 30)
 
     def test_get_override_hourly(self):
         HourlyOverride.objects.create(
             profile=self.overrides['jarvis']['hourly'],
             rate=16
         )
-        self.assertEqual(self.contributions['hourly'].get_override, 8)
-        self.assertEqual(self.contributions['hourly'].get_pay, 8)
+        # Overrides & Manual need to be reinstantiated.
+        contribution = Contribution.objects.get(id=self.contributions['hourly'].id)
+        self.assertEqual(contribution.get_override, 8)
+        self.assertEqual(contribution.pay, 8)
 
     def test_get_rate_manual(self):
         contribution = self.contributions['manual']
@@ -537,8 +541,9 @@ class RatePayTestCase(BaseIndexableTestCase):
         self.assertEqual(rate.rate, 1000)
 
     def test_get_pay_manual(self):
-        contribution = self.contributions['manual']
-        self.assertEqual(contribution.get_pay, 1000)
+        # Caveat of getter/setter logic is persisting data across tests :-/.
+        contribution = Contribution.objects.get(id=self.contributions['manual'].id)
+        self.assertEqual(contribution.pay, 1000)
 
     def test_force_payment(self):
         content = Content.objects.create(title='Hello my friend')

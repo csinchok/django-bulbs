@@ -204,8 +204,6 @@ class Contribution(Indexable):
     force_payment = models.BooleanField(default=False)
     payment_date = models.DateTimeField(null=True, blank=True)
 
-    # _pay = None
-
     search_objects = ContributionManager()
 
     class Mapping:
