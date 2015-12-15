@@ -454,7 +454,6 @@ class ContributionReportingSerializer(serializers.ModelSerializer):
 
     user = serializers.SerializerMethodField()
     content = serializers.SerializerMethodField()
-    pay = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
     rate = serializers.SerializerMethodField()
 
