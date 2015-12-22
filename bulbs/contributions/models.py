@@ -105,6 +105,7 @@ class ContentField(CustomNested):
         self.properties['id'] = field.Integer()
         self.properties['slug'] = field.String(index='not_analyzed')
         self.properties['feature_type'] = FeatureTypeField()
+        self.properties['published'] = field.Date()
 
 
 # class ContentField(field.Object):

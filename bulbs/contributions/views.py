@@ -11,7 +11,7 @@ from rest_framework_csv.renderers import CSVStreamingRenderer
 
 from elasticsearch_dsl import filter as es_filter
 
-from bulbs.content.filters import FeatureTypes, Published, Tags
+from bulbs.content.filters import FeatureTypes, Published, Tags, parse_datetime
 
 from .models import (
     ContributorRole, Contribution, FreelanceProfile, LineItem, OverrideProfile, ReportContent
@@ -169,12 +169,24 @@ class ReportingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
 
         if "start" in self.request.GET:
             start_date = dateparse.parse_date(self.request.GET["start"])
-        qs = qs.filter(Published(after=start_date))
+        qs = qs.filter(
+            es_filter.Nested(
+                path='content', filter=es_filter.Range(
+                    **{'content.published': {'gte': parse_datetime(start_date)}}
+                )
+            )
+        )
 
         end_date = now
         if "end" in self.request.GET:
             end_date = dateparse.parse_date(self.request.GET["end"])
-        qs = qs.filter(Published(before=end_date))
+        qs = qs.filter(
+            es_filter.Nested(
+                path='content', filter=es_filter.Range(
+                    **{'content.published': {'lte': parse_datetime(end_date)}}
+                )
+            )
+        )
 
         feature_types = self.request.QUERY_PARAMS.getlist('feature_types')
         if feature_types:
