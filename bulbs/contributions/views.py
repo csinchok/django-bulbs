@@ -191,7 +191,10 @@ class ReportingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin):
         feature_types = self.request.QUERY_PARAMS.getlist('feature_types')
         if feature_types:
             qs = qs.filter(
-                es_filter.Terms(**{'content.feature_type.slug': feature_types})
+                es_filter.Nested(
+                    path='content.feature_type',
+                    filter=es_filter.Terms(**{'content.feature_type.slug': feature_types})
+                )
             )
 
         contributors = self.request.QUERY_PARAMS.getlist('contributors')

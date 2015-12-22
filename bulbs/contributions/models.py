@@ -1,11 +1,12 @@
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import models
 
 from elasticsearch_dsl import field
+from djes.factory import shallow_class_factory
 from djes.models import Indexable
 
 from bulbs.content.models import Content, FeatureType
-
 
 FLAT_RATE = 0
 FEATURETYPE = 1
@@ -42,7 +43,8 @@ class CustomNested(field.Nested):
             property_data = getattr(obj, key, None)
             if hasattr(self.properties[key], 'to_es'):
                 property_data = self.properties[key].to_es(property_data)
-            data[key] = property_data
+            if property_data is not None:
+                data[key] = property_data
         return data
 
 
@@ -62,7 +64,19 @@ class ContributorField(field.Object):
             if hasattr(self.properties[key], 'to_es'):
                 property_data = self.properties[key].to_es(property_data)
             data[key] = property_data
+
+        # Add whether or not they are freelance staff.
+        profile = getattr(obj, 'freelanceprofile', None)
+        if profile is not None:
+            is_freelance = getattr(profile, 'is_freelance', False)
+            data['is_freelance'] = is_freelance
+
         return data
+
+    def to_python(self, obj):
+        User = get_user_model()  # NOQA
+        obj.pop('is_freelance')
+        return User(**obj)
 
 
 class SlugObjectField(field.Object):
@@ -81,10 +95,9 @@ class FeatureTypeField(CustomNested):
         self.properties['name'] = field.String(index='not_analyzed')
         self.properties['slug'] = field.String(index='not_analyzed')
 
-    # def to_es(self, obj):
-    #     data = super(FeatureTypeField, self).to_es(obj)
-    #     import pdb; pdb.set_trace()
-    #     return data
+    def to_python(self, obj):
+        klass = shallow_class_factory(FeatureType)
+        return klass(**obj)
 
 
 class RoleField(CustomNested):
@@ -240,7 +253,7 @@ class Contribution(Indexable):
 
     class Mapping:
         content = ContentField()
-        # contributor = ContributorField()
+        contributor = ContributorField()
         pay = field.Integer()
         role = RoleField()
 

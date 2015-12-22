@@ -23,6 +23,7 @@ from bulbs.contributions.models import (
     ContributionOverride, FeatureTypeOverride, HourlyOverride, HourlyRate, ManualRate,
     OverrideProfile
 )
+from bulbs.contributions.signals import *  # NOQA
 from bulbs.contributions.utils import get_forced_payment_contributions
 
 

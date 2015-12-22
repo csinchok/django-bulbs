@@ -224,7 +224,10 @@ class ContentViewSet(UncachedResponse, viewsets.ModelViewSet):
             return Response([])
         content = self.get_object()
         queryset = Contribution.search_objects.search().filter(
-            es_filter.Term(**{'content.id': content.id})
+            es_filter.Nested(
+                path='content',
+                filter=es_filter.Term(**{'content.id': content.id})
+            )
         )
         if request.method == "POST":
             serializer = ContributionSerializer(
