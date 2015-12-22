@@ -53,6 +53,7 @@ class ContributionModelTestCase(BaseIndexableTestCase):
             content=self.content[0]
         )
         Contribution.search_objects.refresh()
+
         elastic_queryset = Contribution.search_objects.search()
         self.assertEqual(elastic_queryset.count(), 1)
         ec = elastic_queryset[0]

@@ -116,12 +116,14 @@ class ContributionReportingTestCase(BaseAPITestCase):
 
         Contribution.search_objects.refresh()
 
+
         client = Client()
         client.login(username="admin", password="secret")
 
         # Let's look at all the items
         endpoint = reverse("contributionreporting-list")
         start_date = timezone.now() - datetime.timedelta(days=4)
+        import pdb; pdb.set_trace()
         response = client.get(endpoint, data={"start": start_date.strftime("%Y-%m-%d")})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 4)

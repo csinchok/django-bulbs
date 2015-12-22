@@ -1,9 +1,8 @@
-from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.db import models
 
 from elasticsearch_dsl import field
-from djes.models import Indexable, IndexableManager
+from djes.models import Indexable
 
 from bulbs.content.models import Content, FeatureType
 
@@ -28,6 +27,44 @@ def calculate_hourly_pay(rate, minutes_worked):
     return ((float(rate) / 60) * minutes_worked)
 
 
+class CustomNested(field.Nested):
+    name = 'custom-nested'
+    _type_override = 'nested'
+
+    def to_dict(self):
+        d = super(CustomNested, self).to_dict()
+        d['type'] = self._type_override
+        return d
+
+    def to_es(self, obj):
+        data = {}
+        for key in self.properties:
+            property_data = getattr(obj, key, None)
+            if hasattr(self.properties[key], 'to_es'):
+                property_data = self.properties[key].to_es(property_data)
+            data[key] = property_data
+        return data
+
+
+class ContributorField(field.Object):
+
+    def __init__(self, *args, **kwargs):
+        super(ContributorField, self).__init__(*args, **kwargs)
+        self.properties['username'] = field.String(index='not_analyzed')
+        self.properties['first_name'] = field.String()
+        self.properties['last_name'] = field.String()
+        self.properties['is_freelance'] = field.Boolean()
+
+    def to_es(self, obj):
+        data = {}
+        for key in self.properties:
+            property_data = getattr(obj, key, None)
+            if hasattr(self.properties[key], 'to_es'):
+                property_data = self.properties[key].to_es(property_data)
+            data[key] = property_data
+        return data
+
+
 class SlugObjectField(field.Object):
 
     def __init__(self, *args, **kwargs):
@@ -35,60 +72,68 @@ class SlugObjectField(field.Object):
         self.properties['slug'] = field.construct_field('string', index='not_analyzed')
 
 
-class ContentField(field.Object):
+class FeatureTypeField(CustomNested):
+    name = 'featuretype'
+
+    def __init__(self, *args, **kwargs):
+        super(FeatureTypeField, self).__init__(*args, **kwargs)
+        self.properties['id'] = field.Integer()
+        self.properties['name'] = field.String(index='not_analyzed')
+        self.properties['slug'] = field.String(index='not_analyzed')
+
+    # def to_es(self, obj):
+    #     data = super(FeatureTypeField, self).to_es(obj)
+    #     import pdb; pdb.set_trace()
+    #     return data
+
+
+class RoleField(CustomNested):
+    name = 'role'
+
+    def __init__(self, *args, **kwargs):
+        super(RoleField, self).__init__(*args, **kwargs)
+        self.properties['id'] = field.Integer()
+        self.properties['payment_type'] = field.Integer()
+        self.properties['name'] = field.String()
+
+
+class ContentField(CustomNested):
+    name = 'content'
 
     def __init__(self, *args, **kwargs):
         super(ContentField, self).__init__(*args, **kwargs)
-        self.properties['slug'] = field.construct_field('string', not_analyzed=True)
-        self.properties['feature_type'] = SlugObjectField(not_analyzed=True)
-        self.properties['tags'] = field.construct_field({
-            'type': 'nested',
-            'properties': {
-                'slug': {'type': 'string', 'index': 'not_analyzed'}
-            }
-        })
-
-    def to_es(self, obj):
-        doc = {
-            'id': obj.id,
-            'title': obj.title,
-            'published': obj.published,
-            'feature_type': obj.feature_type.to_dict() if obj.feature_type else {}
-        }
-
-        return doc
-
-    def to_python(self, data):
-        if isinstance(data, Content):
-            return data
-        return Content.objects.get(id=data['id'])
+        self.properties['id'] = field.Integer()
+        self.properties['slug'] = field.String(index='not_analyzed')
+        self.properties['feature_type'] = FeatureTypeField()
 
 
-class ContributorField(field.Object):
+# class ContentField(field.Object):
 
-    def __init__(self, *args, **kwargs):
-        super(ContributorField, self).__init__(*args, **kwargs)
-        self.properties['id'] = field.Long()
-        self.properties['username'] = field.String(index='not_analyzed')
-        self.properties['payroll_name'] = field.String(index='not_analyzed')
-        self.properties['is_freelance'] = field.Boolean()
+#     def __init__(self, *args, **kwargs):
+#         super(ContentField, self).__init__(*args, **kwargs)
+#         self.properties['slug'] = field.construct_field('string', not_analyzed=True)
+#         self.properties['feature_type'] = SlugObjectField(not_analyzed=True)
+#         self.properties['tags'] = field.construct_field({
+#             'type': 'nested',
+#             'properties': {
+#                 'slug': {'type': 'string', 'index': 'not_analyzed'}
+#             }
+#         })
 
-    def to_es(self, obj):
-        data = {
-            'id': obj.id,
-            'username': obj.username
-        }
-        profile = getattr(obj, 'freelanceprofile', None)
-        if profile:
-            data['is_freelance'] = profile.is_freelance
-            data['payroll_name'] = getattr(profile, 'payroll_name', '')
-        return data
+#     def to_es(self, obj):
+#         doc = {
+#             'id': obj.id,
+#             'title': obj.title,
+#             'published': obj.published,
+#             'feature_type': obj.feature_type.to_dict() if obj.feature_type else {}
+#         }
 
-    def to_python(self, data):
-        User = get_user_model()  # noqa
-        user = User.objects.filter(id=data['id'])
-        if user.exists():
-            return user.first()
+#         return doc
+
+#     def to_python(self, data):
+#         if isinstance(data, Content):
+#             return data
+#         return Content.objects.get(id=data['id'])
 
 
 class ContributionField(field.Object):
@@ -183,18 +228,6 @@ class ContributorRole(Indexable):
         return None
 
 
-class ContributionManager(IndexableManager):
-    """
-    Manually manage the Elasticsearch Document & Python relationship.
-    """
-
-    def from_es(self, hit):
-        pay = hit['_source'].pop('pay', 0)
-        obj = super(ContributionManager, self).from_es(hit)
-        setattr(obj, 'pay', pay)
-        return obj
-
-
 class Contribution(Indexable):
     role = models.ForeignKey(ContributorRole)
     contributor = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="contributions")
@@ -204,17 +237,15 @@ class Contribution(Indexable):
     force_payment = models.BooleanField(default=False)
     payment_date = models.DateTimeField(null=True, blank=True)
 
-    search_objects = ContributionManager()
-
     class Mapping:
         content = ContentField()
-        contributor = ContributorField()
-
+        # contributor = ContributorField()
         pay = field.Integer()
+        role = RoleField()
 
         class Meta:
             dynamic = False
-            excludes = ('content', 'contributor')
+            excludes = ("contributor",)
 
     @property
     def pay(self):
@@ -338,9 +369,15 @@ class Rate(Indexable):
 class FlatRate(Rate):
     role = models.ForeignKey(ContributorRole, related_name="flat_rates")
 
+    class Mapping:
+        role = RoleField()
+
 
 class HourlyRate(Rate):
     role = models.ForeignKey(ContributorRole, related_name="hourly_rates")
+
+    class Mapping:
+        role = RoleField()
 
 
 class ManualRate(Rate):
@@ -356,6 +393,10 @@ class FeatureTypeRate(Rate):
 
     class Meta:
         unique_together = (("role", "feature_type"))
+
+    class Mapping:
+        feature_type = FeatureTypeField()
+        role = RoleField()
 
 
 class FreelanceProfile(Indexable):

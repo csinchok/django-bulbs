@@ -8,6 +8,8 @@ class ContributorField(field.Object):
     def __init__(self, *args, **kwargs):
         super(ContributorField, self).__init__(*args, **kwargs)
         self.properties['username'] = field.String(index='not_analyzed')
+        self.properties['first_name'] = field.String()
+        self.properties['last_name'] = field.String()
         self.properties['is_freelance'] = field.Boolean()
 
     def to_es(self, obj):
@@ -27,20 +29,3 @@ class ContributorField(field.Object):
         user = User.objects.filter(id=data['id'])
         if user.exists():
             return user.first()
-
-
-class ContentContributionsField(field.Nested):
-    """
-    This needs a better long-term solution, but alas, time is cruel.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super(ContentContributionsField, self).__init__(*args, **kwargs)
-        self.properties['contributor'] = ContributorField()
-
-    def to_es(self, obj):
-        data = {}
-        return data
-
-    def to_dict(self, **kwargs):
-        return {}
