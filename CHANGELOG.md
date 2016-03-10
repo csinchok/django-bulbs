@@ -1,5 +1,9 @@
 # django-bulbs Change Log
 
+## Version 0.7.12
+
+- Reduce RSS view caching from 10 to 5 min (per social squad)
+
 ## Version 0.7.11
 
 - Remove redundant ES_URLS setting, just use ES_CONNECTIONS. Eventually all client projects can stop using ES_URLS too. 
