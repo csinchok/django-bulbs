@@ -1,5 +1,9 @@
 #!/bin/sh
-# Run all tests
-#
+# Summary: Run all tests. Requires that your /etc/hosts file has an entry for
+#   your docker machine with the name `dockerhost`.
 
-py.test "$@"
+# use parens here to prevent exporting variable to parent env
+(
+  export ELASTICSEARCH_HOST=dockerhost
+  py.test "$@"
+)
