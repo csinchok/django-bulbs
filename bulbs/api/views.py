@@ -605,7 +605,7 @@ class SendContributorReport(viewsets.GenericViewSet):
         return Response(status=status.HTTP_200_OK)
 
 
-class BugReportEmail(APIView):
+class ReportBugEmail(APIView):
 
     def post(self, request):
         SETTINGS = getattr(settings, "BUG_REPORTER", {
