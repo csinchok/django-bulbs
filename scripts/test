@@ -1,9 +1,13 @@
 #!/bin/sh
-# Summary: Run all tests. Requires that your /etc/hosts file has an entry for
-#   your docker machine with the name `dockerhost`.
+# Summary: Run all tests. Requires that you have an es instance running locally
+#   or are pointing to one with an env var ELASTICSEARCH_HOST.
 
-# use parens here to prevent exporting variable to parent env
 (
-  export ELASTICSEARCH_HOST=dockerhost
+  # use parens here to prevent exporting variable to parent env
+  if [ -z "$ELASTICSEARCH_HOST" ]; then
+    # default to localhost if this var isn't already set
+    export ELASTICSEARCH_HOST=localhost
+  fi
+
   py.test "$@"
 )
