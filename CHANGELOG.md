@@ -1,5 +1,9 @@
 # django-bulbs Change Log
 
+## Version 0.7.13
+
+- Add Glance JSON feed for content ingestion: `/feeds/glance.json`
+
 ## Version 0.7.12
 
 - Reduce RSS view caching from 10 to 5 min (per social squad)
