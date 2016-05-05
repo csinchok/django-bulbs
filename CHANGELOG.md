@@ -1,5 +1,13 @@
 # django-bulbs Change Log
 
+## Development
+
+## Version 0.7.14
+
+- Minor tweaks to Glance feed:
+  - Glance feed 5min cache time
+  - Switch thumbnails to "image" key
+
 ## Version 0.7.13
 
 - Add Glance JSON feed for content ingestion: `/feeds/glance.json`
