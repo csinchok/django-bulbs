@@ -40,7 +40,7 @@ class TestTargetingView(BaseAPITestCase):
         url = "{0}?{1}".format(reverse("targeting"), param)
         response = client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, '{"dfp_iscool": false}')
+        self.assertEqual(response.content, b'{"dfp_iscool": false}')
 
     def test_post(self):
         client = Client()
@@ -52,7 +52,7 @@ class TestTargetingView(BaseAPITestCase):
             url,
             content_type="application/json", data='{"dfp_iscool": false}')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, '{"dfp_iscool": false}')
+        self.assertEqual(response.content, b'{"dfp_iscool": false}')
 
         override = TargetingOverride.objects.get(url="/content_list_two.html")
         self.assertEqual(override.targeting, {"dfp_iscool": False})

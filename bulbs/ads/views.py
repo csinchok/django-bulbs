@@ -43,7 +43,7 @@ def targeting(request):
 
     if request.method == "POST":
         try:
-            override_data = json.loads(request.body)
+            override_data = json.loads(request.body.decode())
         except ValueError: # Ignore invalid json
             return HttpResponseBadRequest()
         for key, value in targeting.items():
