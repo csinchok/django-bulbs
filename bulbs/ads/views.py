@@ -1,8 +1,10 @@
 import json
 import sys
 
+from django.contrib.auth.decorators import permission_required
 from django.core.urlresolvers import resolve, Resolver404
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound
+from django.http import (
+    HttpResponse, HttpResponseNotFound, HttpResponseBadRequest)
 from django.views.decorators.csrf import csrf_exempt
 from django.test.client import RequestFactory
 
@@ -16,12 +18,8 @@ else:
 
 
 @csrf_exempt
+@permission_required("ads.change_targetingoverride", raise_exception=True)
 def targeting(request):
-    if not (request.user and request.user.has_perm("ads.change_targetingoverride")):
-        return HttpResponseForbidden(
-            '{"detail": "You do not have permission to perform this action."}'
-        )
-
     url = request.GET.get("url")
     if url is None:
         return HttpResponseNotFound()
@@ -44,7 +42,10 @@ def targeting(request):
     targeting = response.context_data.get('targeting', {})
 
     if request.method == "POST":
-        override_data = json.loads(request.body)
+        try:
+            override_data = json.loads(request.body)
+        except ValueError: # Ignore invalid json
+            return HttpResponseBadRequest()
         for key, value in targeting.items():
             if value == override_data.get(key):
                 del override_data[key]
